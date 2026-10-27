@@ -79,7 +79,7 @@ fun AnalysisScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, 
 
         SectionCard(stringResource(R.string.analysis_coverage)) {
             for (cv in a.coverage) {
-                val text = if (cv.flags.isEmpty()) stringResource(R.string.analysis_ok) else cv.flags.joinToString(" · ") { flagText(it) }
+                val text = if (cv.flags.isEmpty()) stringResource(R.string.analysis_ok) else cv.flags.map { flagText(it) }.joinToString(" · ")
                 KeyValue(layerName(cv.kind), "n=${cv.measured} · $text", Modifier)
             }
         }

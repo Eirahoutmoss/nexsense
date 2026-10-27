@@ -54,7 +54,7 @@ object SceneRenderer {
         fun py(y: Double) = h - pad - ((y - minY) * scale).toFloat()
 
         // 1 m ızgara
-        val gp = Paint().apply { color = GRID; strokeWidth = 1.5f }
+        val gp = Paint().apply { this.color = GRID; strokeWidth = 1.5f }
         var gx = floor(minX)
         while (gx <= ceil(maxX)) { c.drawLine(px(gx), py(minY), px(gx), py(maxY), gp); gx += 1.0 }
         var gy = floor(minY)
