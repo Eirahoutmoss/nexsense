@@ -1,0 +1,18 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+.cxx/
+.kotlin/
+keystore.properties
+*.jks
+*.keystore
+
+# Sürüm hazırlama çıktısı (APK + .sha256), GitHub Release olarak yüklenir, depoya girmez
+dist/
+
+# Deneme (debug) imza anahtarı bilerek depoda: herkesin derlemesi aynı imzayı taşısın
+!tools/ci/debug.keystore
