@@ -46,7 +46,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,7 +85,8 @@ fun LiveScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, onGo
     val orientation by c.sensorHub.orientation.collectAsStateWithLifecycle()
     val micReading by c.micMeter.reading.collectAsStateWithLifecycle()
     val micFailed by c.micMeter.failed.collectAsStateWithLifecycle()
-    var micEnabled by rememberSaveable { mutableStateOf(false) }
+    // Kaydedilmez: ekran dönünce/yeniden açılınca mikrofon kendiliğinden açılmasın.
+    var micEnabled by remember { mutableStateOf(false) }
     var resumeTick by remember { mutableIntStateOf(0) }
     var snapshot by remember { mutableStateOf<Snapshot?>(null) }
 
@@ -102,7 +102,11 @@ fun LiveScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, onGo
             }
         }
         lifecycleOwner.lifecycle.addObserver(obs)
-        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) c.sensorHub.start(settings.sampling)
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            c.sensorHub.start(settings.sampling)
+            // Örnekleme hızı değişince etki yeniden kurulur; kullanıcı açtıysa mikrofon da yeniden başlar.
+            if (micEnabled && c.micMeter.hasPermission()) c.micMeter.start()
+        }
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(obs)
             c.sensorHub.stop()

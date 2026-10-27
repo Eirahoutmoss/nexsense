@@ -53,7 +53,7 @@
     <string name="go_projects">Projelere git</string>
     <string name="home_empty_body">Bir mekân (oda, ofis, atölye) için proje oluştur, sonra Canlı ekranından ölçüm noktaları ekle. İstersen önce açıkça etiketlenmiş demo projesine göz at.</string>
     <string name="home_empty_title">Henüz proje yok</string>
-    <string name="home_intro">Telefonunun sensörleriyle ölçüm noktaları topla, onları kendi referans noktana göre 3B sahnede katman katman incele. Ölçülen, tahmin edilen ve bilinmeyen her zaman ayrı gösterilir.</string>
+    <string name="home_intro">Telefonunun sensörleriyle ölçüm noktaları topla, kendi referans noktana göre 3B sahnede katmanlar hâlinde incele. Ölçülen, tahmin edilen ve bilinmeyen her zaman ayrı gösterilir.</string>
     <string name="home_projects">Projeler</string>
     <string name="import_json">JSON projesi içe al</string>
     <string name="install_aborted">Kurulum iptal edildi.</string>
