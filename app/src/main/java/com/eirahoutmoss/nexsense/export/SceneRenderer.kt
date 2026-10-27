@@ -112,7 +112,7 @@ object SceneRenderer {
             val cx = px(p.x!!); val cy = py(p.y!!)
             val v = layer?.valueOf(p.id)
             val dashed = p.positionSource == PositionSource.PDR
-            if (v != null && layer != null) {
+            if (v != null) {
                 c.drawCircle(cx, cy, 13f, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color(layer.normalized(v.value)) })
                 c.drawCircle(cx, cy, 13f, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = INK; style = Paint.Style.STROKE; strokeWidth = 1.5f; if (dashed) pathEffect = DashPathEffect(floatArrayOf(5f, 4f), 0f) })
             } else {
@@ -168,7 +168,7 @@ object SceneRenderer {
         for ((p, pr) in pts) {
             val v = layer?.valueOf(p.id)
             val r = (14 * 6 / pr.depth).toFloat().coerceIn(6f, 22f)
-            if (v != null && layer != null) c.drawCircle(pr.x.toFloat(), pr.y.toFloat(), r, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color(layer.normalized(v.value)) })
+            if (v != null) c.drawCircle(pr.x.toFloat(), pr.y.toFloat(), r, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color(layer.normalized(v.value)) })
             else c.drawCircle(pr.x.toFloat(), pr.y.toFloat(), r, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = UNMEASURED; style = Paint.Style.STROKE; strokeWidth = 3f })
         }
         return bmp

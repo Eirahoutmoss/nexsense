@@ -30,7 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.DirectionsWalk
+import androidx.compose.material.icons.automirrored.outlined.DirectionsWalk
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.ViewInAr
 import androidx.compose.material3.Button
@@ -186,7 +186,7 @@ private fun AutoSetup(
                 )
                 FilterChip(
                     selected = mode == AutoMode.PDR, onClick = { onMode(AutoMode.PDR) },
-                    leadingIcon = { Icon(Icons.Outlined.DirectionsWalk, null) }, label = { Text(stringResource(R.string.auto_mode_pdr)) },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Outlined.DirectionsWalk, null) }, label = { Text(stringResource(R.string.auto_mode_pdr)) },
                 )
             }
             Text(

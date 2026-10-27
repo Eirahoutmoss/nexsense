@@ -1,53 +1,49 @@
 # NexSense yol haritası
 
-> İlke: NexSense'in farkı her şeyi ölçtüğünü iddia etmesi değil; farklı ölçüm kaynaklarını tek bir mekânsal modelde birleştirmesi ve her bulgunun kaynağını göstermesidir. Önce sağlam bir ölçüm ve 3B görselleştirme çekirdeği; sonra sensörler, tarama ve örüntü analizi katman katman.
+> İlke: NexSense'in farkı her şeyi ölçtüğünü iddia etmesi değil; farklı ölçüm kaynaklarını tek bir mekânsal modelde birleştirmesi ve her bulgunun kaynağını göstermesidir.
 
-## Faz 1 — MVP (bu sürüm, 0.1.x)
+| Faz | Durum |
+|---|---|
+| 1 — MVP: projeler, canlı sensörler, ölçüm noktası, göreli 3B sahne, katmanlar, CSV/JSON | ✅ 0.1.0 |
+| 2 — Otomatik ölçüm ve tarama (ARCore + adım yedeği) | ✅ 0.2.0 |
+| 3 — Haricî sensörler (BLE) | ⏸ bekletiliyor (kullanıcı kararı) |
+| 4 — Akustik (RT60, sonar, kalibre ses basıncı, yön taraması) | ✅ 0.2.0 |
+| 5 — Mekânsal örüntü motoru | ✅ 0.2.0 |
+| 6 — Raporlama (PDF, 3B model, vaka dosyası, onaylı paylaşım) | ✅ 0.2.0 |
 
-- [x] Proje yönetimi: oluştur, listele, aç, yeniden adlandır, sil; veriler yeniden açılışta korunur
-- [x] Ölçüm oturumları (başlat/bitir; ilk noktayla kendiliğinden açılır)
-- [x] Canlı sensör paneli: manyetometre, ivmeölçer, jiroskop, titreşim RMS, ortam ışığı, basınç, ortam sıcaklığı, nem, mikrofon seviyesi (izinle, kullanıcı başlatınca)
-- [x] Desteklenmeyen sensör → "Bu cihazda desteklenmiyor"; batarya/CPU sıcaklığı ortam sıcaklığı yerine kullanılmaz
-- [x] Ölçüm noktası: anlık değerler + ad, not, zaman, kaynak, birim, doğruluk, cihaz yönelimi; koordinat bilinmiyorsa `null`
-- [x] Kullanıcı tanımlı göreli referans sistemi (metre, x/y/z, tarif edilen orijin)
-- [x] Etkileşimli göreli 3B sahne: döndür, yakınlaştır, kaydır, nokta seç, ayrıntı kartı
-- [x] Katmanlar: geometri, manyetik alan, titreşim, akustik, sıcaklık, nem, notlar; "veri yok" durumu
-- [x] Bilimsel dürüstlük: interpolasyon yok, ölçülmeyen nokta içi boş gri halka, demo verisi her yerde etiketli
-- [x] CSV ve JSON dışa aktarma, JSON içe alma (kimlik çakışmasında kopya)
-- [x] Ayarlar: tema, örnekleme hızı, izin durumu, demo projesi, uygulama içi GitHub güncellemesi (Nex standardı)
-- [x] Çekirdek birim testleri, Android lint, GitHub Actions ile deneme APK'sı
+## Faz 1 — MVP (0.1.0) ✅
 
-**Bilinen eksikler (Faz 1 sonrası küçük işler):**
-- Compose arayüz testleri ve cihaz üstü (instrumented) testler yok; elle deneme listesi README'de.
-- Noktayı sahnede sürükleyerek taşıma yok (koordinat elle düzenlenir).
-- Oturum notu düzenleme arayüzü yok (veri modelinde var).
+Proje yönetimi, oturumlar, canlı sensör paneli (desteklenmeyen → "Bu cihazda desteklenmiyor"; batarya/CPU sıcaklığı ortam sıcaklığı yerine kullanılmaz), elle konumlu ölçüm noktası, göreli 3B sahne, katmanlar, CSV/JSON, güncelleme düğmesi.
 
-## Faz 2 — Gelişmiş tarama
+## Faz 2 — Otomatik ölçüm ve tarama (0.2.0) ✅
 
-- ARCore Depth API destekleyen cihazlarda nokta bulutu ve düzlem (zemin/duvar) algılama
-- AR çapası ile ölçüm noktasının konumunu otomatik doldurma (`positionSource = "arcore"`, `positionConfidence` dolu)
-- Proje koordinat sistemini AR oturumuna hizalama (referans noktası işaretleme)
-- Desteklemeyen cihazlarda bugünkü elle girişli göreli sahne aynen kalır
+- **Otomatik ölçüm:** "Başlat" → telefon konumunu kendisi izler, her 0,25/0,5/1/2 m'de ölçüm noktasını kendisi kaydeder. Koordinat yazılmaz.
+- **ARCore modu:** görsel-ataletsel izleme; özellik noktaları + (destekleyen cihazda) Depth API ile nokta bulutu (5 cm voksel, en fazla 30 000), yatay/düşey düzlemler, yürüme yolu.
+- **Hizalama:** başlangıç = referans noktası (telefon yüksekliği girilir) ya da var olan bir nokta; yön düzeltmesi. Aynı başlangıçla yapılan taramalar aynı çerçevede birleşir.
+- **Adım modu (ARCore yoksa):** adım algılama + pusula; "tahmini konum" (kesikli halka), güven her adımda düşer, z = tutma yüksekliği varsayımı.
+- İzleme kaybolduğunda kayıt yapılmaz.
 
-## Faz 3 — Haricî sensörler
+## Faz 3 — Haricî sensörler ⏸
 
-- BLE sıcaklık/nem, hava kalitesi (CO₂, VOC, PM) ve titreşim sensörleri
-- Sensör kimliği, kalibrasyon kaydı (`calibrationInfo`), `source = "external"`
-- Bluetooth izinleri yalnızca bu özellik açılınca istenir
+BLE sıcaklık/nem, hava kalitesi (CO₂, VOC, PM), haricî titreşim sensörleri; sensör kimliği ve kalibrasyon; haricî hoparlörle bas akustiği. Şema hazır (`source = "external"`).
 
-## Faz 4 — Akustik
+## Faz 4 — Akustik (0.2.0) ✅
 
-- Kalibrasyon profiliyle yaklaşık dB SPL (kalibresiz değer yine dBFS olarak kalır)
-- Spektrum (FFT), kontrollü darbe/eko ölçümü, RT60 ve oda akustiği metrikleri
+- **Oda akustiği:** üstel tarama ×2, dürtü yanıtı, oktav bantlarında T20 → RT60, kalite değerlendirmesi, tarama ölçülerinden oda modları.
+- **Yankı mesafesi (sonar):** 8 darbe, eşleşik süzgeç, hizalayıp ortalama; 3 yankıya kadar; ses hızı ortam sıcaklığından.
+- **Ses basıncı:** dBFS + referans ölçerle bulunan ofset → yaklaşık dB SPL; baskın frekans.
+- **Akustik yön taraması (deneysel):** sabit noktada telefonun doğrultulduğu yönde ilk yankı → 3B yapıya nokta. Proje kuzey açısıyla hizalanır.
 
-## Faz 5 — Mekânsal örüntü motoru
+## Faz 5 — Mekânsal örüntü motoru (0.2.0) ✅
 
-- Zaman çizgisi ve oturum karşılaştırma
-- Yönelim bilgisiyle vektörleri oda eksenlerine çevirme
-- Yöntemi açıkça belirtilen interpolasyon (ör. IDW) — tahmin bölgeleri ölçümden görsel olarak ayrı
-- Eşik uyarıları, katmanlar arası ilişki, anomali adayları, "ölçüm yetersiz" işaretleri
+Ölçüm yeterliliği işaretleri; eşik uyarıları; sağlam z-puanıyla anomali adayları; katmanlar arası Pearson ilişkisi; zaman çizgisi (oturum özeti, aynı yerde oturumlar arası değişim, sahnede oturum filtresi); yönden bağımsız manyetik bileşenler; IDW tahmini (yalnızca kullanıcı açınca, sınırlı uzaklıkta, ölçümden görsel olarak ayrı); tarama noktalarından yaklaşık oda boyutu.
 
-## Faz 6 — Raporlama
+## Faz 6 — Raporlama (0.2.0) ✅
 
-- PDF rapor, 3B görünüm görüntüsü, vaka dosyası
-- Kullanıcı onayıyla paylaşım (varsayılan: veri cihazda kalır)
+PDF rapor (özet, perspektif ve katman başına plan görüntüleri, tablolar, analiz, yöntemler); PLY 3B model; vaka dosyası (ZIP: JSON, CSV, PDF, PLY, SHA-256 bütünlük listesi); açık onaylı paylaşım.
+
+## Sonraki küçük işler
+
+- Cihaz üstü (instrumented) ve Compose arayüz testleri.
+- ARCore taramalarını birbirine otomatik hizalama (ortak düzlemlerle); şimdilik ortak başlangıç noktasıyla.
+- Noktayı sahnede sürükleyerek taşıma.

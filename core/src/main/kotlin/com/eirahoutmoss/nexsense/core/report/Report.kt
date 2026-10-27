@@ -48,7 +48,7 @@ object PlyWriter {
         for (p in bundle.points) {
             if (!p.isPlaced) continue
             val v = colorLayer?.valueOf(p.id)
-            val c = if (v != null && colorLayer != null) ramp.at(colorLayer.normalized(v.value)) else Rgb(255, 255, 255)
+            val c = if (v != null) ramp.at(colorLayer.normalized(v.value)) else Rgb(255, 255, 255)
             verts += V(p.x!!, p.y!!, p.z!!, c)
         }
         out.append("ply\nformat ascii 1.0\n")

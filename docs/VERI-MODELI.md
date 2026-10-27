@@ -1,4 +1,4 @@
-# NexSense veri modeli — şema 1
+# NexSense veri modeli — şema 2
 
 Kaynak: [`core/src/main/kotlin/.../core/model/Model.kt`](../core/src/main/kotlin/com/eirahoutmoss/nexsense/core/model/Model.kt)
 
@@ -11,7 +11,9 @@ Her proje tek bir JSON dosyasıdır (`ProjectBundle`). Uygulama içinde `files/p
   "project":  { ... },
   "sessions": [ ... ],
   "points":   [ ... ],
-  "samples":  [ ... ]
+  "samples":  [ ... ],
+  "scans":    [ ... ],
+  "analysis": { ... }
 }
 ```
 
@@ -24,7 +26,7 @@ Her proje tek bir JSON dosyasıdır (`ProjectBundle`). Uygulama içinde `files/p
 | Eksik değer | `null`. Sıfırla karıştırılmaz. NaN/sonsuz kaydedilmez |
 | Koordinat | Ya x, y, z üçü birden bilinir ya da üçü de `null`'dır. Yarım koordinat reddedilir; uygulama sahte koordinat üretmez |
 | Kaynak | `device` (yerleşik sensör), `external` (haricî; Faz 3), `derived` (ham ölçümden hesaplanmış), `demo` (uydurma) |
-| Sürüm | `schemaVersion` artınca `Migrations.upgrade` adımı eklenir; daha yeni şemalı dosya içe alınmaz |
+| Sürüm | `schemaVersion` artınca `Migrations.upgrade` adımı eklenir; daha yeni şemalı dosya içe alınmaz. **1 → 2**: yeni alanlar varsayılanla gelir, ölçüm verisi değişmez |
 
 ## Project
 
@@ -46,6 +48,7 @@ Her proje tek bir JSON dosyasıdır (`ProjectBundle`). Uygulama içinde `files/p
 | `handedness` | `right` | sağ el kuralı |
 | `axes` | `x: right along reference wall, y: forward into room, z: up` | |
 | `origin` | `""` | Kullanıcının tarif ettiği referans noktası (ör. "salon kapısının sol alt köşesi, zemin") |
+| `northAngleDeg` | `null` | (şema 2) Manyetik kuzeyin proje +y ekseninden saat yönünde açısı; akustik yön taraması için |
 
 ## Session
 
@@ -60,8 +63,8 @@ Bir projede aynı anda en fazla bir açık oturum vardır. Açık oturum yokken 
 | `label`, `notes` | string | |
 | `x`, `y`, `z` | number \| null | metre, proje koordinat sisteminde |
 | `createdAt` | ISO 8601 | |
-| `positionSource` | `manual` \| `none` \| `demo` | `manual`: kullanıcı elle girdi |
-| `positionConfidence` | number (0..1) \| null | Elle girilen konumda bilinmediği için `null` |
+| `positionSource` | `manual` \| `none` \| `arcore` \| `pdr` \| `demo` | `manual`: elle; `arcore`: ARCore hareket izleme (otomatik ölçüm); `pdr`: adım sayımı + pusula (kaba tahmin, z = tutma yüksekliği varsayımı) |
+| `positionConfidence` | number (0..1) \| null | Elle: `null`. ARCore: 0,9. Adım: 0,6'dan başlar, her adımda 0,01 düşer (en az 0,1) |
 
 ## SensorSample
 
@@ -77,7 +80,7 @@ Bir projede aynı anda en fazla bir açık oturum vardır. Açık oturum yokken 
 | `source` | enum | `device`, `external`, `derived`, `demo` |
 | `quality` | string \| null | Android doğruluk durumu: `high`, `medium`, `low`, `unreliable` |
 | `confidence` | number (0..1) \| null | MVP'de hesaplanmaz (`null`) |
-| `deviceOrientation` | nesne \| null | `azimuthDeg`, `pitchDeg`, `rollDeg`, `method` |
+| `deviceOrientation` | nesne \| null | `azimuthDeg`, `pitchDeg`, `rollDeg`, `method`, (şema 2) `rotationMatrix`: cihaz → Doğu/Kuzey/Yukarı, satır sıralı 9 değer |
 | `calibrationInfo` | string \| null | Kalibrasyon/türetme yöntemi |
 
 ### Sensör türleri
@@ -93,12 +96,35 @@ Bir projede aynı anda en fazla bir açık oturum vardır. Açık oturum yokken 
 | `relative_humidity` | % | value | TYPE_RELATIVE_HUMIDITY |
 | `vibration_rms` | m/s² | rms | türetilmiş: TYPE_LINEAR_ACCELERATION büyüklüğünün son ~100 örnekteki RMS'i |
 | `sound_level` | dBFS | rms, peak | türetilmiş: PCM16 mono, `20·log10(rms/32768)`. **Kalibre değil, dB SPL değil.** Ses kaydedilmez |
+| `sound_spl` | dB SPL | leq, peak | (şema 2) dBFS + kullanıcının referans ölçerle bulduğu ofset; ağırlıksız, yaklaşık |
+| `dominant_frequency` | Hz | frequency | (şema 2) FFT (32768, Hann), 40–8000 Hz |
+| `reverb_time` | s | rt60_mid, rt60_125 … rt60_4000 | (şema 2) üstel tarama ×2, Schroeder T20 → RT60; güvenilmez bant `null` |
+| `echo_distance` | m | first, second, third | (şema 2) sonar: 8 darbe, eşleşik süzgeç, hizalanıp ortalanır; ses hızı ortam sıcaklığından (yoksa 20 °C) |
+
+## Scan (şema 2)
+
+| Alan | Tür | Not |
+|---|---|---|
+| `id`, `projectId`, `sessionId` | string | |
+| `method` | `arcore` \| `pdr` \| `acoustic_echo` \| `demo` | |
+| `startedAt`, `endedAt` | ISO 8601 | |
+| `points` | `[{x,y,z,c,k}]` | proje koordinatı (m); `c` güven 0..1; `k`: `f` ARCore özellik noktası, `d` derinlik, `a` akustik. 5 cm vokselle seyreltilir, en fazla 30 000 |
+| `planes` | `[{type, polygon, areaM2}]` | `horizontal_up` (zemin **ya da** masa), `horizontal_down`, `vertical`; köşeler `[x,y,z]` |
+| `trajectory` | `[{t,x,y,z}]` | telefonun yolu, 10 cm'de bir |
+| `alignment` | `{startPointId, offsetX/Y/Z, yawDeg, note}` | tarama çerçevesi → proje çerçevesi: önce z etrafında `yawDeg`, sonra öteleme |
+
+**ARCore çerçevesi:** y yukarı, oturum başında orijin. Eşleme `(x, y, z)ₚ = (x, −z, y)ₐᵣ`; ilk izlenen karede telefonun konumu orijin, baktığı yatay yön +y olur; sonra `alignment` uygulanır.
+
+## analysis (şema 2)
+
+`thresholds: [{layer, min, max}]` (katman adı: `MAGNETIC`, `MOTION`, `ACOUSTIC`, `SPL`, `REVERB`, `TEMPERATURE`, `HUMIDITY`), `gridCellM` (IDW hücre boyu), `maxEstimateDistanceM` (bu uzaklıktan öte tahmin yok).
 
 ## Eksen dönüşümleri
 
 - Sensör eksenleri **cihaz koordinat sistemindedir** (Android `SensorEvent`: ekrana bakarken x sağ, y yukarı, z ekrandan dışarı). NexSense bunları dünya/oda eksenlerine **döndürmez**.
 - Her örnekle birlikte cihaz yönelimi (`deviceOrientation`) saklanır: `SensorManager.getRotationMatrix(ivmeölçer, manyetometre)` → `getOrientation` → azimut/eğim/yuvarlanma (derece). İleride (Faz 5) vektörler bu bilgiyle oda eksenlerine çevrilebilir.
-- Bu yüzden MVP'de karşılaştırma yalnızca **büyüklükler** (ör. manyetik alanın toplamı) üzerinden yapılır; x/y/z bileşenleri farklı yönelimde alınmışsa doğrudan karşılaştırılmamalıdır.
+- Analiz ekranındaki "yönden bağımsız manyetik bileşenler", kayıtlı `rotationMatrix` ile vektörü Doğu-Kuzey-Yukarı çerçevesine çevirir; yatay (H), düşey (Z) bileşen ve eğim açısı telefonun duruşundan bağımsızdır. (Doğu bileşeni tanım gereği ~0'dır, çünkü matris aynı manyetometreden hesaplanır.)
+- Ham x/y/z bileşenleri farklı yönelimde alınmışsa doğrudan karşılaştırılmamalıdır.
 - Nokta koordinatları (x, y, z) ise **proje koordinat sistemindedir** ve kullanıcının referans noktasına göredir.
 
 ## CSV biçimi

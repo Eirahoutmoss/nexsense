@@ -2,6 +2,8 @@
 
 Nex uygulama ailesinin mekânsal sensör uygulaması (Android). Telefonun yerleşik sensörlerinden ölçüm toplar, ölçümleri zaman ve **kullanıcının kendi referans noktasına göre** konumla ilişkilendirir ve sonuçları katmanlı, etkileşimli bir 3B sahnede gösterir.
 
+**0.2.0'da yeni:** koordinat yazmadan **otomatik ölçüm** (başlat ve yürü: ARCore ile konum izleme, nokta bulutu, duvar/zemin düzlemleri; ARCore yoksa adım sayımı), **sabit nokta akustiği** (yankı süresi RT60, sonar mesafe, kalibre ses basıncı, akustik yön taraması), **analiz** (eşik, anomali, ilişki, zaman çizgisi, IDW tahmini) ve **raporlama** (PDF, 3B model PLY, vaka dosyası, onaylı paylaşım). Haricî sensörler (Faz 3) bilerek bekletiliyor.
+
 > **Temel ilke:** Gerçek ölçüm, algoritmik tahmin ve bilinmeyen alanlar görsel olarak ayrıdır. Ölçülmeyen yer ölçülmüş gibi gösterilmez; desteklenmeyen sensör "Bu cihazda desteklenmiyor" der; demo verisi her yerde **DEMO VERİSİ** etiketiyle görünür.
 
 - Konsept görseli: [`assets/NexSense-konsept.png`](assets/NexSense-konsept.png) (tasarım referansı; birebir kopya hedeflenmedi)
@@ -14,11 +16,14 @@ Nex uygulama ailesinin mekânsal sensör uygulaması (Android). Telefonun yerle�
 | Ekran | İçerik |
 |---|---|
 | **Ana Sayfa** | Projeler (oluştur, aç, yeniden adlandır, sil), ölçüme başla, demo projesi |
+| **Otomatik ölçüm** | Başlat → yürü. ARCore modu: telefonun konumu cm düzeyinde izlenir; her 0,25–2 m'de ölçüm noktası (konum + o anki sensör değerleri + yönelim) kendiliğinden kaydedilir; nokta bulutu (özellik noktaları + destekleyen cihazda derinlik), yatay/düşey düzlemler, yürüme yolu. Başlangıç = referans noktası ya da var olan bir nokta. ARCore yoksa adım modu (kaba, "tahmini konum") |
+| **Sabit nokta: akustik** | Telefon sabit bir yerde: oda yankı süresi (oktav bantları, kalite, oda modları), yankı mesafesi (sonar, 3 yankıya kadar), ses düzeyi / yaklaşık dB SPL / baskın frekans, akustik yön taraması (yüzeylere doğrultarak 3B noktalar, deneysel). Sonuçlar seçilen noktaya kaydedilir |
+| **Analiz** | Ölçüm yeterliliği, eşik uyarıları, anomali adayları (sağlam z), katman ilişkileri (Pearson), zaman çizgisi ve aynı yerde oturumlar arası değişim, yönden bağımsız manyetik bileşenler, IDW tahmin ayarları, yaklaşık oda boyutu |
 | **Canlı** | Cihazın gerçekten sunduğu sensörler: manyetometre (x/y/z + toplam, µT), ivmeölçer, jiroskop, titreşim RMS, ortam ışığı, basınç, ortam sıcaklığı, nem; mikrofon seviyesi (dBFS, yalnızca izinle ve kullanıcı başlatınca). Her kartta birim, örnek zamanı, doğruluk ve kaynak sensör. Cihaz yönelimi. **Ölçüm noktası ekle** |
-| **Mekân** | Göreli 3B sahne (tek parmak döndür, iki parmak yakınlaştır/kaydır, dokun seç). Zemin ızgarası 1 m. Açılıp kapanan katmanlar: geometri, manyetik alan, titreşim, akustik, sıcaklık, nem, notlar. Renk göstergesi, konumsuz nokta sayısı, referans noktası tarifi |
+| **Mekân** | Göreli 3B sahne (tek parmak döndür, iki parmak yakınlaştır/kaydır, dokun seç). Katmanlar: geometri, manyetik alan, titreşim, akustik (dBFS), ses basıncı, yankı süresi, sıcaklık, nem, notlar, tarama (nokta bulutu, düzlemler, yollar). İsteğe bağlı tahmin (IDW, soluk taralı hücreler). Oturum filtresi (zaman çizgisi) |
 | **Ölçümler** | Nokta listesi; konum/oturum/sensör filtreleri; ayrıntı (tüm örnekler, kaynak, kalite, yönelim); düzenle, sil |
-| **Rapor** | Özet, CSV ve JSON dışa aktarma, JSON içe alma, oturum geçmişi |
-| **Ayarlar** | Tema (koyu varsayılan), örnekleme hızı, izin durumu, demo verisi, uygulama içi güncelleme, hakkında |
+| **Rapor** | Özet; CSV, JSON; **PDF rapor**, **3B model (PLY)**, **vaka dosyası (ZIP + SHA-256 listesi)**, **onaylı paylaşım**; taramalar; JSON içe alma; oturum geçmişi |
+| **Ayarlar** | Tema (koyu varsayılan), örnekleme hızı, izin durumu, **ses kalibrasyonu**, **adım modu**, demo verisi, uygulama içi güncelleme, hakkında |
 
 Yükleniyor, boş, hata ve izin-reddedildi durumları her ekranda ayrı tasarlandı; izin reddi uygulamayı çökertmez.
 
@@ -26,9 +31,10 @@ Yükleniyor, boş, hata ve izin-reddedildi durumları her ekranda ayrı tasarlan
 
 - Ortam sıcaklığı yalnızca `TYPE_AMBIENT_TEMPERATURE` sensöründen okunur. **Batarya/CPU sıcaklığı yerine kullanılmaz.** Çoğu telefonda bu sensör yoktur.
 - Mikrofon değeri **dBFS**'tir, kalibre değildir, dB SPL olarak sunulmaz. Ses kaydedilmez.
-- GPS iç mekânda güvenilir olmadığı için kullanılmaz. Konum, projenin referans noktasına göre elle girilen metre cinsinden x/y/z'dir. Konum girilmezse `null` kalır ve nokta sahneye konmaz — sahte koordinat üretilmez. Yarım koordinat kabul edilmez.
-- "Otomatik oda tarama" yoktur; bu sürümde gerçek derinlik/tarama altyapısı kullanılmıyor (bkz. ROADMAP Faz 2).
-- **İnterpolasyon yok:** yalnızca ölçülen noktalar renklenir; bir katmanda ölçülmemiş nokta içi boş gri halkadır. Az noktadan ısı haritası üretilmez.
+- GPS iç mekânda güvenilir olmadığı için kullanılmaz. Konum ya ARCore hareket izlemesinden (otomatik), ya adım sayımından (kaba tahmin, açıkça etiketli) ya da elle gelir. Konum yoksa `null` kalır ve nokta sahneye konmaz — sahte koordinat üretilmez. ARCore izlemeyi kaybettiği anda kayıt durur.
+- Tarama gerçek bir API'ye dayanır (ARCore özellik noktaları, Depth API, düzlem algılama). ARCore'un "yukarı bakan yatay düzlemi" zemin de olabilir masa da; uygulama ayırt ediyormuş gibi yapmaz.
+- **Tahmin ayrıdır:** varsayılan olarak yalnızca ölçülen noktalar renklenir. IDW tahmini yalnızca açılınca, ölçüme en fazla 1,5 m (ayarlanabilir) uzaklıkta, soluk ve taralı hücrelerle gösterilir; 4'ten az konumlu ölçümle hiç üretilmez.
+- Akustik ölçümler telefon hoparlörü/mikrofonuyla yaklaşıktır: hoparlör yönlü değildir, bas zayıftır; yön taraması deneysel olarak işaretlidir. Ses ve görüntü diske yazılmaz.
 - Sensör eksenleri cihaz koordinatındadır ve oda eksenlerine döndürülmez (yönelim kaydedilir). Ayrıntı: [veri modeli → eksen dönüşümleri](docs/VERI-MODELI.md#eksen-dönüşümleri).
 - NexSense profesyonel yapı güvenliği, sağlık ya da laboratuvar cihazı değildir.
 
@@ -53,6 +59,9 @@ app/    Android (Kotlin, Jetpack Compose, Material 3)
 ```
 
 - 3B sahne OpenGL/harici motor kullanmaz: Compose `Canvas` üzerinde perspektif izdüşüm (çekirdekte test edilen matematik). Hafif ve bağımlılıksız.
+- Otomatik ölçüm: `ar/ArCapture` (GLSurfaceView + ARCore 1.45.0, NexYapı ile aynı sürüm); konum dönüşümü, voksel seyreltme ve kayıt kuralı çekirdekte (`core/spatial`) test edilir.
+- Akustik: `core/acoustic` (FFT, üstel tarama, Schroeder RT60 — NexTools'tan; sonar darbe hizalama, ses basıncı), `sensors/AcousticIo` (çal + kaydet).
+- Analiz: `core/analysis`; rapor: `core/report` (PLY, vaka dosyası) + `export/` (PDF, sahne görüntüleri).
 - Kalıcılık: `files/projects/<id>.json`, atomik yazma (`.tmp` → yeniden adlandırma). Okunamayan dosya silinmez, kullanıcıya bildirilir. Bulut yedeği kapalı.
 - Sensörler yalnızca Canlı ekranı görünürken kayıtlıdır; arayüz güncellemesi ~10 Hz ile sınırlıdır (pil). Mikrofon ekrandan çıkınca kapanır.
 - Bağımlılık sürümleri NexTools/NexYapı ile aynıdır (AGP 8.7.3, Kotlin 2.0.21, Compose BOM 2024.12.01); yalnızca `kotlinx-serialization-json 1.7.3` eklendi.
@@ -102,8 +111,13 @@ keyPassword=...
 | Sinyal | titreşim RMS (az örnekte `null`), dBFS (0, −6.02, taban) |
 | 3B sahne ve katmanlar | izdüşüm, kamera arkası, yükseklik yönü, kamera sınırları, dokunarak seçim, sığdırma; katman verisi (veri yok / demo / konumsuz), katman açma-kapama |
 | Güncelleme | SemVer, sürüm seçimi (NexTools'tan) |
+| Şema 2 | v1 dosyasının yükseltilmesi; tarama kalıcılığı ve içe almada kimlik eşleme; geçersiz tarama/eşik reddi; kuzey açısı |
+| Konumlama | ARCore → proje çerçevesi, döndürme/hizalama, ENU → proje; voksel seyreltme; otomatik kayıt kuralı (izleme yokken asla); iz seyreltme; adım konumu ve güven; adım algılama |
+| Akustik | RT60 (yapay odalarla, NexTools testleri), çoklu yankı sırası, bilinmeyen hoparlör gecikmesinde darbe hizalama, dBFS/ofset/baskın frekans |
+| Analiz | IDW (ölçüm noktasında doğru, uzakta boş, az noktada yok), anomali, eşik, yeterlilik, ilişki, zaman çizgisi, manyetik dünya bileşenleri, oda boyutu |
+| Rapor | PLY başlık/gövde tutarlılığı, vaka dosyası SHA-256 listesi |
 
-**Gerçek cihazda denenmedi.** Compose arayüz testleri ve cihaz üstü testler bu sürümde yok; emülatörde de çalıştırılmadı (CI'da emülatör yok). Sensör okuma, izin akışı, 3B sahne hareketleri ve dosya kaydetme diyalogları gerçek telefonda elle denenmelidir:
+**Gerçek cihazda denenmedi (0.1.0 ve 0.2.0).** Compose arayüz testleri ve cihaz üstü testler bu sürümde yok; emülatörde de çalıştırılmadı (CI'da emülatör yok). Sensör okuma, izin akışı, 3B sahne hareketleri ve dosya kaydetme diyalogları gerçek telefonda elle denenmelidir:
 
 1. Uygulamayı aç → **Yeni proje** → Canlı: sensör kartları dolmalı; olmayanlar "desteklenmiyor" demeli.
 2. Ses seviyesini başlat → izni **reddet** → uygulama çökmemeli, kart "izin verilmedi" demeli.
@@ -111,11 +125,15 @@ keyPassword=...
 4. Uygulamayı tamamen kapatıp aç → noktalar duruyor olmalı.
 5. Katmanları aç/kapat; döndür, yakınlaştır, kaydır, noktaya dokun.
 6. Rapor → CSV ve JSON kaydet → JSON'u içe al → kopya proje oluşmalı.
+7. Canlı → **Otomatik ölçüm** → ARCore → kamera izni → başlat, odada yavaşça bir tur at → noktalar kendiliğinden eklenmeli; Bitir → Mekân'da nokta bulutu, düzlemler, yol ve renkli noktalar.
+8. ARCore'u kapatıp (ya da desteklemeyen telefonda) **Adım sayımı** ile aynı turu at → kesikli halkalı noktalar.
+9. **Sabit nokta: akustik** → telefonu masaya koy → Oda akustiği, Yankı mesafesi, Ses düzeyi → "Noktaya kaydet"; Yön taraması ile birkaç yüzey ölç → Taramayı kaydet.
+10. Rapor → PDF, PLY, vaka dosyası kaydet; Paylaş → onay ekranı çıkmalı. PLY'yi MeshLab/CloudCompare'de aç.
 
 ## Sınırlamalar
 
-- Konumlar elle girilir; AR/derinlik tabanlı konumlama yok (Faz 2).
-- Haricî sensör (BLE) yok; sıcaklık/nem çoğu telefonda "desteklenmiyor" görünür (Faz 3).
-- Ses seviyesi kalibre değildir (Faz 4).
-- Interpolasyon/ısı haritası, eşik uyarıları, anomali analizi yok (Faz 5). PDF rapor yok (Faz 6).
+- Haricî sensör (BLE) yok — Faz 3 bilerek bekletiliyor; sıcaklık/nem çoğu telefonda "desteklenmiyor" görünür.
+- ARCore yalnızca destekli telefonlarda (Google Play Hizmetleri – AR). Düz, desensiz duvarlarda ve karanlıkta izleme kaybolabilir. Ayrı taramalar ancak aynı başlangıç noktasıyla aynı çerçevede birleşir (otomatik eşleştirme yok).
+- Adım modu kabadır: hata her adımda birikir, yükseklik ölçülmez.
+- Ses basıncı yalnızca kullanıcı ofsetiyle ve ağırlıksız (A/C yok) yaklaşık dB SPL'dir.
 - Yalnızca Android. iOS planlanmadı.
