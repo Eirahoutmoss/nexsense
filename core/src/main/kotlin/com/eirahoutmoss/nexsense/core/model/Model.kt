@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * NexSense veri modeli — şema sürümü 1.
+ * NexSense veri modeli — şema sürümü 2 (1 → 2: taramalar, AR/adım konum kaynakları, akustik türler, analiz ayarları).
  *
  * Kurallar (ayrıntı: docs/VERI-MODELI.md):
  *  - Zaman damgaları ISO 8601, UTC ("2026-10-27T18:00:00.123Z").
@@ -13,7 +13,7 @@ import kotlinx.serialization.Serializable
  *  - Koordinat bilinmiyorsa x/y/z `null` kalır; uygulama sahte koordinat üretmez.
  *  - Veri kaynağı (cihaz / haricî / türetilmiş / demo) ve kalite bilgisi korunur.
  */
-const val SCHEMA_VERSION = 1
+const val SCHEMA_VERSION = 2
 
 /** Dışa aktarılan ve diskte saklanan dosyanın biçim adı. */
 const val BUNDLE_FORMAT = "nexsense-project"
@@ -41,6 +41,12 @@ enum class PositionSource {
     /** Konum bilinmiyor; x/y/z null. */
     @SerialName("none") NONE,
 
+    /** ARCore hareket izleme (görsel-ataletsel odometri). Başlangıç noktası projenin referansına hizalanır. */
+    @SerialName("arcore") ARCORE,
+
+    /** Adım sayımı + yön (PDR). Kaba tahmindir; adım sayısı arttıkça güven düşer. z kullanıcının tuttuğu yüksekliktir. */
+    @SerialName("pdr") PDR,
+
     /** Demo verisinin uydurma konumu. */
     @SerialName("demo") DEMO,
 }
@@ -57,6 +63,11 @@ data class CoordinateSystem(
     val handedness: String = "right",
     val axes: String = "x: right along reference wall, y: forward into room, z: up",
     val origin: String = "",
+    /**
+     * Manyetik kuzeyin proje +y ekseninden saat yönünde açısı (derece). Yalnızca akustik yön taraması
+     * gibi pusula yönü kullanan ölçümler için gerekir; bilinmiyorsa null (o ölçümler "hizalanmamış" işaretlenir).
+     */
+    val northAngleDeg: Double? = null,
 )
 
 @Serializable
@@ -108,6 +119,8 @@ data class DeviceOrientation(
     val rollDeg: Double? = null,
     /** Ör. "rotation-matrix(accelerometer+magnetometer)". */
     val method: String = "",
+    /** Cihaz → dünya (Doğu, Kuzey, Yukarı) dönüşüm matrisi, satır sıralı 9 değer. Yoksa null. */
+    val rotationMatrix: List<Double>? = null,
 )
 
 @Serializable
@@ -140,9 +153,14 @@ data class ProjectBundle(
     val sessions: List<Session> = emptyList(),
     val points: List<MeasurementPoint> = emptyList(),
     val samples: List<SensorSample> = emptyList(),
+    /** Şema 2: nokta bulutu / düzlem / iz taramaları. */
+    val scans: List<Scan> = emptyList(),
+    /** Şema 2: projeye özel analiz ayarları (eşikler). */
+    val analysis: AnalysisSettings = AnalysisSettings(),
 ) {
     val openSession: Session? get() = sessions.lastOrNull { it.isOpen }
     fun samplesOf(pointId: String): List<SensorSample> = samples.filter { it.pointId == pointId }
     val hasDemoData: Boolean
-        get() = samples.any { it.source == SampleSource.DEMO } || points.any { it.positionSource == PositionSource.DEMO }
+        get() = samples.any { it.source == SampleSource.DEMO } || points.any { it.positionSource == PositionSource.DEMO } ||
+            scans.any { it.method == ScanMethod.DEMO }
 }

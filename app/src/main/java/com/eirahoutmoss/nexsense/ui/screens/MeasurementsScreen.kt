@@ -230,6 +230,10 @@ fun sensorTypeName(t: SensorType): String = stringResource(
         SensorType.RELATIVE_HUMIDITY -> R.string.ch_humidity
         SensorType.VIBRATION_RMS -> R.string.ch_vibration
         SensorType.SOUND_LEVEL -> R.string.ch_microphone
+        SensorType.SOUND_SPL -> R.string.st_spl
+        SensorType.DOMINANT_FREQUENCY -> R.string.st_dominant
+        SensorType.REVERB_TIME -> R.string.st_reverb
+        SensorType.ECHO_DISTANCE -> R.string.st_echo
     },
 )
 

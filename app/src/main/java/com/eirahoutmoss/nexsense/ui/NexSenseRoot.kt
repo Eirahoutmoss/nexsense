@@ -41,6 +41,9 @@ import com.eirahoutmoss.nexsense.AppContainer
 import com.eirahoutmoss.nexsense.R
 import com.eirahoutmoss.nexsense.ui.components.DemoBadge
 import com.eirahoutmoss.nexsense.ui.components.LoadingState
+import com.eirahoutmoss.nexsense.ui.screens.AcousticScreen
+import com.eirahoutmoss.nexsense.ui.screens.AnalysisScreen
+import com.eirahoutmoss.nexsense.ui.screens.AutoScanScreen
 import com.eirahoutmoss.nexsense.ui.screens.HomeScreen
 import com.eirahoutmoss.nexsense.ui.screens.LiveScreen
 import com.eirahoutmoss.nexsense.ui.screens.MeasurementsScreen
@@ -56,6 +59,14 @@ enum class Tab(val label: Int, val icon: ImageVector) {
     REPORT(R.string.tab_report, Icons.Outlined.SaveAlt),
 }
 
+/** Alt sekmelerin üstünde açılan tam ekranlar. */
+enum class Overlay(val title: Int) {
+    SETTINGS(R.string.settings_title),
+    AUTO_SCAN(R.string.auto_title),
+    ACOUSTIC(R.string.acoustic_title),
+    ANALYSIS(R.string.analysis_title),
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NexSenseRoot(c: AppContainer) {
@@ -68,14 +79,15 @@ fun NexSenseRoot(c: AppContainer) {
     }
 
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
-    var showSettings by rememberSaveable { mutableStateOf(false) }
+    var overlay by rememberSaveable { mutableStateOf<Overlay?>(null) }
+    val showSettings = overlay != null
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         c.actions.messages.collect { snackbar.showSnackbar(context.getString(it.resId, it.arg)) }
     }
-    BackHandler(enabled = showSettings) { showSettings = false }
+    BackHandler(enabled = showSettings) { overlay = null }
     BackHandler(enabled = !showSettings && tab != Tab.HOME) { tab = Tab.HOME }
 
     Scaffold(
@@ -85,7 +97,7 @@ fun NexSenseRoot(c: AppContainer) {
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 navigationIcon = {
                     if (showSettings) {
-                        IconButton(onClick = { showSettings = false }) {
+                        IconButton(onClick = { overlay = null }) {
                             Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
                         }
                     }
@@ -93,7 +105,7 @@ fun NexSenseRoot(c: AppContainer) {
                 title = {
                     Column {
                         Text(
-                            if (showSettings) stringResource(R.string.settings_title) else stringResource(R.string.app_name),
+                            overlay?.let { stringResource(it.title) } ?: stringResource(R.string.app_name),
                             style = MaterialTheme.typography.titleLarge,
                         )
                         if (!showSettings && bundle != null) {
@@ -109,7 +121,7 @@ fun NexSenseRoot(c: AppContainer) {
                 actions = {
                     if (!showSettings && bundle?.hasDemoData == true) DemoBadge(Modifier.padding(end = 4.dp))
                     if (!showSettings) {
-                        IconButton(onClick = { showSettings = true }) {
+                        IconButton(onClick = { overlay = Overlay.SETTINGS }) {
                             Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.settings_title))
                         }
                     }
@@ -132,15 +144,20 @@ fun NexSenseRoot(c: AppContainer) {
         },
     ) { padding ->
         val m = Modifier.padding(padding)
+        val open: (Overlay) -> Unit = { overlay = it }
+        val back: () -> Unit = { overlay = null; tab = Tab.SPACE }
         when {
-            showSettings -> SettingsScreen(c, m)
+            overlay == Overlay.SETTINGS -> SettingsScreen(c, m)
             !loaded -> LoadingState(m)
+            overlay == Overlay.AUTO_SCAN -> AutoScanScreen(c, bundle, m, onDone = back)
+            overlay == Overlay.ACOUSTIC -> AcousticScreen(c, bundle, m, onDone = back)
+            overlay == Overlay.ANALYSIS -> AnalysisScreen(c, bundle, m, onDone = { overlay = null })
             else -> when (tab) {
                 Tab.HOME -> HomeScreen(c, bundle, m, onGo = { tab = it })
-                Tab.LIVE -> LiveScreen(c, bundle, m, onGo = { tab = it })
-                Tab.SPACE -> SpaceScreen(c, bundle, m, onGo = { tab = it })
+                Tab.LIVE -> LiveScreen(c, bundle, m, onGo = { tab = it }, onOverlay = open)
+                Tab.SPACE -> SpaceScreen(c, bundle, m, onGo = { tab = it }, onOverlay = open)
                 Tab.MEASUREMENTS -> MeasurementsScreen(c, bundle, m, onGo = { tab = it })
-                Tab.REPORT -> ReportScreen(c, bundle, m, onGo = { tab = it })
+                Tab.REPORT -> ReportScreen(c, bundle, m, onGo = { tab = it }, onOverlay = open)
             }
         }
     }

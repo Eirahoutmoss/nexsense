@@ -62,7 +62,7 @@ class ExportImportTest {
     @Test fun jsonRoundTripIntoAnotherRepository() {
         val (r, id) = repoWithData()
         val json = r.exportJson(id)
-        assertTrue(json.contains("\"schemaVersion\": 1"))
+        assertTrue(json.contains("\"schemaVersion\": 2"))
         assertTrue(json.contains("\"y\": null"))
 
         val other = ProjectRepository(InMemoryProjectStorage()).apply { loadAll() }
@@ -98,7 +98,7 @@ class ExportImportTest {
 
     @Test fun rejectsNewerSchema() {
         val (r, id) = repoWithData()
-        val json = r.exportJson(id).replace("\"schemaVersion\": 1", "\"schemaVersion\": 99")
+        val json = r.exportJson(id).replace("\"schemaVersion\": 2", "\"schemaVersion\": 99")
         try {
             r.importJson(json)
             fail()

@@ -1,4 +1,4 @@
-# NexTools / NexYapı ile aynı sürümler (Nex ailesi). Yalnızca kotlinx-serialization eklendi.
+# NexTools / NexYapı ile aynı sürümler (Nex ailesi). Ek: kotlinx-serialization, ARCore (NexYapı ile aynı).
 [versions]
 agp = "8.7.3"
 kotlin = "2.0.21"
@@ -10,6 +10,8 @@ navigation = "2.8.5"
 coroutines = "1.9.0"
 serialization = "1.7.3"
 junit = "4.13.2"
+# NexYapı ile aynı ARCore sürümü
+arcore = "1.45.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -28,6 +30,7 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+arcore = { group = "com.google.ar", name = "core", version.ref = "arcore" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

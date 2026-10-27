@@ -23,7 +23,11 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.sp
+import com.eirahoutmoss.nexsense.core.analysis.EstimateGrid
 import com.eirahoutmoss.nexsense.core.layers.LayerData
+import com.eirahoutmoss.nexsense.core.model.ScanPlane
+import com.eirahoutmoss.nexsense.core.model.ScanPoint
+import com.eirahoutmoss.nexsense.core.model.TrackPoint
 import com.eirahoutmoss.nexsense.core.layers.LayerKind
 import com.eirahoutmoss.nexsense.core.scene.Bounds
 import com.eirahoutmoss.nexsense.core.scene.Grid
@@ -40,14 +44,26 @@ data class SceneItem(
     val label: String,
     val position: Vec3,
     val hasNote: Boolean,
+    /** Konum tahmini (adım tabanlı) ise kesikli halka çizilir. */
+    val estimatedPosition: Boolean = false,
 )
+
+/** Tarama katmanı: nokta bulutu (seyreltilmiş), düzlemler ve izler. */
+class SceneScan(
+    val points: List<ScanPoint>,
+    val planes: List<ScanPlane>,
+    val tracks: List<List<TrackPoint>>,
+) {
+    val isEmpty: Boolean get() = points.isEmpty() && planes.isEmpty() && tracks.isEmpty()
+}
 
 /**
  * Göreli 3B sahne (OpenGL'siz, Canvas üzerinde perspektif izdüşüm).
  *  - Tek parmak: döndür · iki parmak: yakınlaştır + kaydır · dokun: nokta seç.
  *  - z = 0 zemin ızgarası 1 m aralıklıdır; orijin kullanıcının referans noktasıdır.
  *  - Renk yalnızca ölçülen noktada vardır. Değeri olmayan nokta içi boş gri halkadır ("ölçülmedi").
- *    Ara bölgeler boyanmaz (interpolasyon yok).
+ *  - Tahmin (IDW) yalnızca kullanıcı açarsa, zeminde soluk ve çapraz taralı hücreler olarak çizilir;
+ *    ölçüm noktalarıyla karışmaz. Uzak hücreler boş kalır.
  */
 @Composable
 fun SceneView(
@@ -61,13 +77,15 @@ fun SceneView(
     onSelect: (String?) -> Unit,
     description: String,
     modifier: Modifier = Modifier,
+    scan: SceneScan? = null,
+    estimate: EstimateGrid? = null,
 ) {
     val measurer = rememberTextMeasurer()
     val cam by rememberUpdatedState(camera)
     val currentItems by rememberUpdatedState(items)
     val setCamera by rememberUpdatedState(onCamera)
     val select by rememberUpdatedState(onSelect)
-    val bounds = Bounds.of(items.map { it.position })
+    val bounds = Bounds.of(items.map { it.position } + (scan?.points?.map { Vec3(it.x, it.y, it.z) }.orEmpty()))
     val grid = Grid.lines(bounds)
 
     Canvas(
@@ -138,6 +156,55 @@ fun SceneView(
             }
         }
 
+        // Tahmin hücreleri (zemin, soluk + çapraz çizgi)
+        if (estimate != null && colorLayer != null) {
+            val ramp = LayerColors.ramp(colorLayer.kind)
+            for (j in 0 until estimate.ny) for (i in 0 until estimate.nx) {
+                val v = estimate.at(i, j) ?: continue
+                val x0 = estimate.originX + i * estimate.cellM
+                val y0 = estimate.originY + j * estimate.cellM
+                val c0 = camera.project(Vec3(x0, y0, 0.0), w, h) ?: continue
+                val c1 = camera.project(Vec3(x0 + estimate.cellM, y0, 0.0), w, h) ?: continue
+                val c2 = camera.project(Vec3(x0 + estimate.cellM, y0 + estimate.cellM, 0.0), w, h) ?: continue
+                val c3 = camera.project(Vec3(x0, y0 + estimate.cellM, 0.0), w, h) ?: continue
+                val path = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(c0.x.toFloat(), c0.y.toFloat()); lineTo(c1.x.toFloat(), c1.y.toFloat())
+                    lineTo(c2.x.toFloat(), c2.y.toFloat()); lineTo(c3.x.toFloat(), c3.y.toFloat()); close()
+                }
+                val conf = estimate.confidenceAt(i, j).toFloat()
+                drawPath(path, ramp.at(colorLayer.normalized(v)).copy(alpha = 0.12f + 0.3f * conf))
+                drawLine(Color.White.copy(alpha = 0.10f), Offset(c0.x.toFloat(), c0.y.toFloat()), Offset(c2.x.toFloat(), c2.y.toFloat()), 1f)
+            }
+        }
+
+        // Tarama: düzlemler, nokta bulutu, izler
+        if (scan != null) {
+            for (pl in scan.planes) {
+                val pr = pl.polygon.mapNotNull { v -> camera.project(Vec3(v[0], v[1], v[2]), w, h) }
+                if (pr.size < 3) continue
+                val path = androidx.compose.ui.graphics.Path().apply {
+                    pr.forEachIndexed { k, q -> if (k == 0) moveTo(q.x.toFloat(), q.y.toFloat()) else lineTo(q.x.toFloat(), q.y.toFloat()) }
+                    close()
+                }
+                drawPath(path, NexColors.Cyan.copy(alpha = 0.07f))
+                drawPath(path, NexColors.Cyan.copy(alpha = 0.45f), style = Stroke(width = 1.5f))
+            }
+            for (p in scan.points) {
+                val pr = camera.project(Vec3(p.x, p.y, p.z), w, h) ?: continue
+                val col = if (p.k == "a") Color(0xFFD08CFF) else Color(0xFFB4C8DC)
+                drawCircle(col.copy(alpha = (0.25 + 0.5 * p.c).toFloat()), if (p.k == "a") 4f else 1.8f, Offset(pr.x.toFloat(), pr.y.toFloat()))
+            }
+            for (t in scan.tracks) {
+                var prev: Offset? = null
+                for (q in t) {
+                    val pr = camera.project(Vec3(q.x, q.y, q.z), w, h)
+                    val o = pr?.let { Offset(it.x.toFloat(), it.y.toFloat()) }
+                    if (o != null && prev != null) drawLine(NexColors.Blue.copy(alpha = 0.8f), prev, o, 2.5f)
+                    prev = o
+                }
+            }
+        }
+
         // Uzaktan yakına çiz (yakın noktalar üstte kalsın).
         val projected = items.mapNotNull { item -> camera.project(item.position, w, h)?.let { item to it } }
             .sortedByDescending { it.second.depth }
@@ -172,6 +239,9 @@ fun SceneView(
             }
             if (showNotes && item.hasNote) {
                 drawCircle(LayerColors.swatch(LayerKind.NOTES), 5f, center + Offset(radius * 0.9f, -radius * 0.9f))
+            }
+            if (item.estimatedPosition) {
+                drawCircle(NexColors.Demo, radius + 4f, center, style = Stroke(width = 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f))))
             }
             if (item.id == selectedId) {
                 drawCircle(Color.White, radius + 6f, center, style = Stroke(width = 3f))

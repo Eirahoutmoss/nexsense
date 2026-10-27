@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Yalnızca paylaşım için üretilen geçici dosyalar (önbellek). Proje dosyaları doğrudan paylaşılmaz. -->
+<paths>
+    <cache-path name="share" path="share/" />
+</paths>
