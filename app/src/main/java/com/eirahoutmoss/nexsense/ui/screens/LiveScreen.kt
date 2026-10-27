@@ -28,7 +28,7 @@ import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Thermostat
-import androidx.compose.material.icons.outlined.ThreeSixty
+import androidx.compose.material.icons.outlined.ScreenRotation
 import androidx.compose.material.icons.outlined.Vibration
 import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material.icons.outlined.Compress
@@ -210,7 +210,7 @@ fun LiveScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, onGo
 private fun Channel.icon(): ImageVector = when (this) {
     Channel.MAGNETOMETER -> Icons.Outlined.Explore
     Channel.ACCELEROMETER -> Icons.Outlined.Speed
-    Channel.GYROSCOPE -> Icons.Outlined.ThreeSixty
+    Channel.GYROSCOPE -> Icons.Outlined.ScreenRotation
     Channel.VIBRATION -> Icons.Outlined.Vibration
     Channel.LIGHT -> Icons.Outlined.Lightbulb
     Channel.PRESSURE -> Icons.Outlined.Compress
