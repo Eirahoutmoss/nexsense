@@ -8,7 +8,7 @@ data class ValidationIssue(val code: Code, val detail: String) {
     enum class Code {
         MISSING_UNIT, WRONG_UNIT, NO_VALUES, UNKNOWN_COMPONENT, NOT_FINITE, BAD_TIMESTAMP,
         PARTIAL_POSITION, NOT_FINITE_POSITION, BLANK_NAME, BAD_CONFIDENCE, BAD_REFERENCE,
-        BAD_FORMAT, NEWER_SCHEMA,
+        BAD_FORMAT, NEWER_SCHEMA, BAD_SCAN, BAD_THRESHOLD,
     }
 
     override fun toString(): String = "$code: $detail"
@@ -77,6 +77,44 @@ object Validation {
                 add(ValidationIssue(ValidationIssue.Code.BAD_REFERENCE, "sample ${s.id}"))
             }
             addAll(sample(s))
+        }
+        for (sc in b.scans) {
+            if (sc.projectId != b.project.id || (sc.sessionId != null && sc.sessionId !in sessionIds)) {
+                add(ValidationIssue(ValidationIssue.Code.BAD_REFERENCE, "scan ${sc.id}"))
+            }
+            addAll(scan(sc))
+        }
+        addAll(analysis(b.analysis))
+    }
+
+    fun scan(sc: Scan): List<ValidationIssue> = buildList {
+        if (!isIsoTimestamp(sc.startedAt)) add(ValidationIssue(ValidationIssue.Code.BAD_TIMESTAMP, sc.startedAt))
+        sc.endedAt?.let { if (!isIsoTimestamp(it)) add(ValidationIssue(ValidationIssue.Code.BAD_TIMESTAMP, it)) }
+        val badPoint = sc.points.firstOrNull { p ->
+            !p.x.isFinite() || !p.y.isFinite() || !p.z.isFinite() || !p.c.isFinite() || p.c < 0.0 || p.c > 1.0
+        }
+        if (badPoint != null) add(ValidationIssue(ValidationIssue.Code.BAD_SCAN, "${sc.id}: point $badPoint"))
+        for (pl in sc.planes) {
+            if (pl.polygon.size < 3 || pl.polygon.any { v -> v.size != 3 || v.any { !it.isFinite() } }) {
+                add(ValidationIssue(ValidationIssue.Code.BAD_SCAN, "${sc.id}: plane"))
+            }
+        }
+        if (sc.trajectory.any { !it.x.isFinite() || !it.y.isFinite() || !it.z.isFinite() || !it.t.isFinite() }) {
+            add(ValidationIssue(ValidationIssue.Code.BAD_SCAN, "${sc.id}: trajectory"))
+        }
+    }
+
+    fun analysis(a: AnalysisSettings): List<ValidationIssue> = buildList {
+        for (t in a.thresholds) {
+            val lo = t.min; val hi = t.max
+            if ((lo != null && !lo.isFinite()) || (hi != null && !hi.isFinite()) || (lo != null && hi != null && lo > hi)) {
+                add(ValidationIssue(ValidationIssue.Code.BAD_THRESHOLD, "${t.layer}: $lo..$hi"))
+            }
+        }
+        if (!a.gridCellM.isFinite() || a.gridCellM < 0.05 || a.gridCellM > 5.0 ||
+            !a.maxEstimateDistanceM.isFinite() || a.maxEstimateDistanceM <= 0.0 || a.maxEstimateDistanceM > 20.0
+        ) {
+            add(ValidationIssue(ValidationIssue.Code.BAD_THRESHOLD, "grid ${a.gridCellM} / ${a.maxEstimateDistanceM}"))
         }
     }
 }

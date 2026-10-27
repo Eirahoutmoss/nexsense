@@ -16,9 +16,14 @@ enum class LayerKind(val sensor: SensorType?, val component: String?) {
     MAGNETIC(SensorType.MAGNETIC_FIELD, "magnitude"),
     MOTION(SensorType.VIBRATION_RMS, "rms"),
     ACOUSTIC(SensorType.SOUND_LEVEL, "rms"),
+    SPL(SensorType.SOUND_SPL, "leq"),
+    REVERB(SensorType.REVERB_TIME, "rt60_mid"),
     TEMPERATURE(SensorType.AMBIENT_TEMPERATURE, "value"),
     HUMIDITY(SensorType.RELATIVE_HUMIDITY, "value"),
     NOTES(null, null),
+
+    /** Nokta bulutu, düzlemler ve izler (ARCore / adım / akustik yön taraması). */
+    SCAN(null, null),
     ;
 
     val isMeasurement: Boolean get() = sensor != null
@@ -74,6 +79,13 @@ object LayerAnalysis {
                     null, null, null, vals.any { it.isDemo }, vals.count { !it.placed },
                 )
             }
+            LayerKind.SCAN -> {
+                val has = bundle.scans.any { it.points.isNotEmpty() || it.planes.isNotEmpty() || it.trajectory.isNotEmpty() }
+                LayerData(
+                    kind, if (has) LayerStatus.HAS_DATA else LayerStatus.NO_DATA, emptyList(),
+                    null, null, null, bundle.scans.any { it.method == com.eirahoutmoss.nexsense.core.model.ScanMethod.DEMO }, 0,
+                )
+            }
             else -> {
                 val sensor = kind.sensor!!
                 val comp = kind.component!!
@@ -106,7 +118,7 @@ object LayerAnalysis {
 
 /** Açık/kapalı katmanlar. Ölçüm katmanlarından aynı anda yalnızca biri renk verir. */
 data class LayerSelection(
-    val visible: Set<LayerKind> = setOf(LayerKind.GEOMETRY, LayerKind.MAGNETIC, LayerKind.NOTES),
+    val visible: Set<LayerKind> = setOf(LayerKind.GEOMETRY, LayerKind.MAGNETIC, LayerKind.NOTES, LayerKind.SCAN),
     val colorLayer: LayerKind? = LayerKind.MAGNETIC,
 ) {
     fun toggle(kind: LayerKind): LayerSelection {

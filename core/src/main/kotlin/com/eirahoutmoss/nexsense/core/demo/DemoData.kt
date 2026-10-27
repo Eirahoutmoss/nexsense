@@ -2,6 +2,12 @@ package com.eirahoutmoss.nexsense.core.demo
 
 import com.eirahoutmoss.nexsense.core.model.CoordinateSystem
 import com.eirahoutmoss.nexsense.core.model.MeasurementPoint
+import com.eirahoutmoss.nexsense.core.model.PlaneType
+import com.eirahoutmoss.nexsense.core.model.Scan
+import com.eirahoutmoss.nexsense.core.model.ScanMethod
+import com.eirahoutmoss.nexsense.core.model.ScanPlane
+import com.eirahoutmoss.nexsense.core.model.ScanPoint
+import com.eirahoutmoss.nexsense.core.model.TrackPoint
 import com.eirahoutmoss.nexsense.core.model.PositionSource
 import com.eirahoutmoss.nexsense.core.model.Project
 import com.eirahoutmoss.nexsense.core.model.ProjectBundle
@@ -63,6 +69,15 @@ object DemoData {
             samples += s(newId(), p.id, sid, SensorType.SOUND_LEVEL, linkedMapOf("rms" to r(snd), "peak" to r(snd + 9)), ts)
             val t = 21.0 + z * 1.4 + (if (xx == 4.5) 0.8 else 0.0) + rnd.nextDouble(-0.2, 0.2)
             samples += s(newId(), p.id, sid, SensorType.AMBIENT_TEMPERATURE, linkedMapOf("value" to r(t)), ts)
+            samples += s(newId(), p.id, sid, SensorType.SOUND_SPL, linkedMapOf("leq" to r(snd + 94.0), "peak" to r(snd + 103.0)), ts)
+            if (z == 1.2) {
+                val rt = 0.45 + (if (yy == 3.5) 0.15 else 0.0) + rnd.nextDouble(-0.03, 0.03)
+                samples += s(
+                    newId(), p.id, sid, SensorType.REVERB_TIME,
+                    linkedMapOf("rt60_mid" to r(rt), "rt60_125" to null, "rt60_250" to r(rt + 0.1), "rt60_500" to r(rt + 0.02), "rt60_1000" to r(rt - 0.02), "rt60_2000" to r(rt - 0.06), "rt60_4000" to r(rt - 0.1)),
+                    ts,
+                )
+            }
             samples += s(newId(), p.id, sid, SensorType.RELATIVE_HUMIDITY, linkedMapOf("value" to r(48.0 - z * 2 + rnd.nextDouble(-1.0, 1.0))), ts)
         }
         // Konumu bilinmeyen bir nokta: sahnede gösterilmez, listede "konumsuz" görünür.
@@ -73,7 +88,33 @@ object DemoData {
         )
         points += unplaced
         samples += s(newId(), unplaced.id, sid, SensorType.MAGNETIC_FIELD, linkedMapOf("x" to 20.0, "y" to 15.0, "z" to null, "magnitude" to null), ts)
-        return ProjectBundle(project = project, sessions = listOf(session), points = points, samples = samples)
+        // Örnek oda taraması: 5 × 4 × 2,6 m duvar/zemin düzlemleri ve duvarlarda seyrek noktalar.
+        val scanPoints = ArrayList<ScanPoint>()
+        repeat(600) {
+            val wall = rnd.nextInt(4)
+            val t = rnd.nextDouble()
+            val zz = rnd.nextDouble(0.0, 2.6)
+            val (sx, sy) = when (wall) {
+                0 -> t * 5.0 to 0.0
+                1 -> 5.0 to t * 4.0
+                2 -> t * 5.0 to 4.0
+                else -> 0.0 to t * 4.0
+            }
+            scanPoints += ScanPoint(r(sx + rnd.nextDouble(-0.02, 0.02), 3), r(sy + rnd.nextDouble(-0.02, 0.02), 3), r(zz, 3), r(rnd.nextDouble(0.4, 0.9)))
+        }
+        fun quad(a: List<Double>, b: List<Double>, c: List<Double>, d: List<Double>) = listOf(a, b, c, d)
+        val planes = listOf(
+            ScanPlane(PlaneType.HORIZONTAL_UP, quad(listOf(0.0, 0.0, 0.0), listOf(5.0, 0.0, 0.0), listOf(5.0, 4.0, 0.0), listOf(0.0, 4.0, 0.0)), 20.0),
+            ScanPlane(PlaneType.VERTICAL, quad(listOf(0.0, 0.0, 0.0), listOf(5.0, 0.0, 0.0), listOf(5.0, 0.0, 2.6), listOf(0.0, 0.0, 2.6)), 13.0),
+            ScanPlane(PlaneType.VERTICAL, quad(listOf(5.0, 0.0, 0.0), listOf(5.0, 4.0, 0.0), listOf(5.0, 4.0, 2.6), listOf(5.0, 0.0, 2.6)), 10.4),
+        )
+        val track = points.filter { it.isPlaced && it.z == 1.2 }.mapIndexed { k, p -> TrackPoint(k * 3.0, p.x!!, p.y!!, 1.2) }
+        val scan = Scan(
+            id = newId(), projectId = pid, sessionId = sid, method = ScanMethod.DEMO,
+            startedAt = start.toString(), endedAt = now.toString(),
+            points = scanPoints, planes = planes, trajectory = track, notes = "DEMO",
+        )
+        return ProjectBundle(project = project, sessions = listOf(session), points = points, samples = samples, scans = listOf(scan))
     }
 
     private fun r(v: Double, digits: Int = 2): Double {

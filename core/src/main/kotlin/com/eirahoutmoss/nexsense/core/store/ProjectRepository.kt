@@ -1,7 +1,9 @@
 package com.eirahoutmoss.nexsense.core.store
 
 import com.eirahoutmoss.nexsense.core.export.JsonCodec
+import com.eirahoutmoss.nexsense.core.model.AnalysisSettings
 import com.eirahoutmoss.nexsense.core.model.DeviceOrientation
+import com.eirahoutmoss.nexsense.core.model.Scan
 import com.eirahoutmoss.nexsense.core.model.MeasurementPoint
 import com.eirahoutmoss.nexsense.core.model.PositionSource
 import com.eirahoutmoss.nexsense.core.model.Project
@@ -147,6 +149,7 @@ class ProjectRepository(
         z: Double?,
         samples: List<SampleDraft>,
         positionSource: PositionSource? = null,
+        positionConfidence: Double? = null,
     ): MeasurementPoint = synchronized(lock) {
         val issues = Validation.position(x, y, z)
         if (issues.isNotEmpty()) throw ValidationException(issues)
@@ -164,8 +167,9 @@ class ProjectRepository(
             x = x, y = y, z = z,
             createdAt = now(),
             positionSource = positionSource ?: if (placed) PositionSource.MANUAL else PositionSource.NONE,
-            positionConfidence = null,
+            positionConfidence = positionConfidence,
         )
+        Validation.point(point).let { if (it.isNotEmpty()) throw ValidationException(it) }
         val made = samples.map { it.toSample(point.id, session.id) }
         val bad = made.flatMap { Validation.sample(it) }
         if (bad.isNotEmpty()) throw ValidationException(bad)
@@ -201,6 +205,48 @@ class ProjectRepository(
         updated
     }
 
+    /** Var olan noktaya yeni ölçümler ekler (ör. sabit noktada akustik ölçüm). */
+    fun addSamples(projectId: String, pointId: String, samples: List<SampleDraft>) = synchronized(lock) {
+        var b = require(projectId)
+        if (b.points.none { it.id == pointId }) throw NoSuchElementException(pointId)
+        val session = b.openSession ?: Session(id = newId(), projectId = projectId, startedAt = now()).also {
+            b = b.copy(sessions = b.sessions + it)
+        }
+        val made = samples.map { it.toSample(pointId, session.id) }
+        val bad = made.flatMap { Validation.sample(it) }
+        if (bad.isNotEmpty()) throw ValidationException(bad)
+        save(b.copy(samples = b.samples + made))
+    }
+
+    /** Taramayı kaydeder (kimlik ve proje atanır). Açık oturum varsa ona bağlanır. */
+    fun addScan(projectId: String, draft: Scan): Scan = synchronized(lock) {
+        val b = require(projectId)
+        val sc = draft.copy(id = newId(), projectId = projectId, sessionId = draft.sessionId ?: b.openSession?.id)
+        val issues = Validation.scan(sc)
+        if (issues.isNotEmpty()) throw ValidationException(issues)
+        save(b.copy(scans = b.scans + sc))
+        sc
+    }
+
+    fun deleteScan(projectId: String, scanId: String) = synchronized(lock) {
+        val b = require(projectId)
+        save(b.copy(scans = b.scans.filterNot { it.id == scanId }))
+    }
+
+    fun setAnalysis(projectId: String, analysis: AnalysisSettings) = synchronized(lock) {
+        val issues = Validation.analysis(analysis)
+        if (issues.isNotEmpty()) throw ValidationException(issues)
+        val b = require(projectId)
+        save(b.copy(analysis = analysis))
+    }
+
+    fun setNorthAngle(projectId: String, deg: Double?) = synchronized(lock) {
+        if (deg != null && !deg.isFinite()) throw ValidationException(listOf(ValidationIssue(ValidationIssue.Code.BAD_FORMAT, "north=$deg")))
+        val b = require(projectId)
+        val norm = deg?.let { ((it % 360.0) + 360.0) % 360.0 }
+        save(b.copy(project = b.project.copy(coordinateSystem = b.project.coordinateSystem.copy(northAngleDeg = norm))))
+    }
+
     fun deletePoint(projectId: String, pointId: String) = synchronized(lock) {
         val b = require(projectId)
         save(b.copy(points = b.points.filterNot { it.id == pointId }, samples = b.samples.filterNot { it.pointId == pointId }))
@@ -232,6 +278,13 @@ class ProjectRepository(
         val sessionMap = b.sessions.associate { it.id to newId() }
         val pointMap = b.points.associate { it.id to newId() }
         return b.copy(
+            scans = b.scans.map {
+                it.copy(
+                    id = newId(), projectId = pid,
+                    sessionId = it.sessionId?.let { s -> sessionMap.getValue(s) },
+                    alignment = it.alignment.copy(startPointId = it.alignment.startPointId?.let { p -> pointMap[p] }),
+                )
+            },
             project = b.project.copy(id = pid),
             sessions = b.sessions.map { it.copy(id = sessionMap.getValue(it.id), projectId = pid) },
             points = b.points.map { it.copy(id = pointMap.getValue(it.id), projectId = pid, sessionId = sessionMap.getValue(it.sessionId)) },
