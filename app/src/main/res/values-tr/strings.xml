@@ -43,7 +43,7 @@
     <string name="acoustic_speed_measured">Ses hızı %1$s m/s (ölçülen ortam sıcaklığı %2$s °C).</string>
     <string name="acoustic_title">Sabit nokta: akustik</string>
     <string name="acoustic_unmeasured">ölçülemedi</string>
-    <string name="acoustic_volume_low">Medya ses düzeyi düşük; daha güvenilir sonuç için %70 üstüne çıkar.</string>
+    <string name="acoustic_volume_low">Medya ses düzeyi düşük; daha güvenilir sonuç için yüzde 70\'in üstüne çıkar.</string>
     <string name="analysis_acoustic">Akustik ölçümler</string>
     <string name="analysis_alert_above">%1$s · %2$s: %3$s > üst sınır %4$s</string>
     <string name="analysis_alert_below">%1$s · %2$s: %3$s &lt; alt sınır %4$s</string>

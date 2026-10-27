@@ -43,7 +43,7 @@
     <string name="acoustic_speed_measured">Speed of sound %1$s m/s (measured ambient %2$s °C).</string>
     <string name="acoustic_title">Fixed point: acoustics</string>
     <string name="acoustic_unmeasured">not measured</string>
-    <string name="acoustic_volume_low">Media volume is low; raise it above 70% for more reliable results.</string>
+    <string name="acoustic_volume_low">Media volume is low; raise it above 70 percent for more reliable results.</string>
     <string name="analysis_acoustic">Acoustic measurements</string>
     <string name="analysis_alert_above">%1$s · %2$s: %3$s > upper limit %4$s</string>
     <string name="analysis_alert_below">%1$s · %2$s: %3$s &lt; lower limit %4$s</string>
