@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NexSense simgesi (konsept görseline göre): katmanlardan oluşan izometrik küp. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Üst yüz -->
+    <path android:pathData="M54,27 L74,38.5 L54,50 L34,38.5 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="34" android:startY="27" android:endX="74" android:endY="50">
+                <item android:offset="0" android:color="#7FE7FF" />
+                <item android:offset="1" android:color="#2BB3F0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Katman 1 -->
+    <path android:pathData="M34,43 L54,54.5 L74,43 L74,49 L54,60.5 L34,49 Z" android:fillColor="#2F8CF0" />
+    <!-- Katman 2 -->
+    <path android:pathData="M34,53 L54,64.5 L74,53 L74,59 L54,70.5 L34,59 Z" android:fillColor="#1F66D6" />
+    <!-- Katman 3 -->
+    <path android:pathData="M34,63 L54,74.5 L74,63 L74,69 L54,80.5 L34,69 Z" android:fillColor="#1646A8" />
+</vector>
