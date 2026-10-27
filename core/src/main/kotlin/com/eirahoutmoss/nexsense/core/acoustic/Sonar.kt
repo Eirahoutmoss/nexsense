@@ -90,6 +90,45 @@ object Sonar {
         return chosen.sorted().map { Echo((it - direct).toDouble() / fs * c / 2, corr[it] / noise) }
     }
 
+    /** [pings] adet taramadan oluşan çalma dizisi; taramalar arası [spacingS] saniye. */
+    fun pingTrain(chirp: DoubleArray, fs: Int, pings: Int, spacingS: Double, amplitude: Double = 0.9): FloatArray {
+        val spacing = (spacingS * fs).toInt()
+        val play = FloatArray(spacing * pings)
+        for (k in 0 until pings) for (i in chirp.indices) play[k * spacing + i] = (amplitude * chirp[i]).toFloat()
+        return play
+    }
+
+    /**
+     * Darbe dizisi kaydının ilişki eğrisinde her darbeyi doğrudan ses tepesine hizalayıp ortalar
+     * (NexTools Sonar yöntemi). Hoparlör gecikmesi bilinmese de çalışır: ilk güçlü tepe aranır.
+     * Dönen eğri doğrudan sesten [lead] örnek önce başlar; [echoes] doğrudan sesi ilk 20 ms'de bulur.
+     */
+    fun alignPings(corr: DoubleArray, fs: Int, spacingS: Double, pings: Int, c: Double, maxDistM: Double, lead: Int = 60): DoubleArray {
+        if (corr.isEmpty()) return DoubleArray(0)
+        val spacing = (spacingS * fs).toInt()
+        val win = lead + (2 * maxDistM / c * fs).toInt() + 10
+        val max = corr.max()
+        if (max <= 0) return DoubleArray(0)
+        val first = corr.indexOfFirst { it > 0.5 * max }.coerceAtLeast(0)
+        fun localMax(around: Int, r: Int): Int {
+            var b = around.coerceIn(0, corr.size - 1)
+            for (i in (around - r).coerceAtLeast(0)..(around + r).coerceAtMost(corr.size - 1)) if (corr[i] > corr[b]) b = i
+            return b
+        }
+        val d0 = localMax(first + 20, 40)
+        val avg = DoubleArray(win)
+        var used = 0
+        for (k in 0 until pings) {
+            val dk = localMax(d0 + k * spacing, 30)
+            if (dk - lead < 0 || dk - lead + win > corr.size) continue
+            for (i in 0 until win) avg[i] += corr[dk - lead + i]
+            used++
+        }
+        if (used == 0) return DoubleArray(0)
+        for (i in avg.indices) avg[i] /= used
+        return avg
+    }
+
     /** Yankı güvenini 0..1'e taşır: oran 4 → 0, oran 40+ → 1 (logaritmik). */
     fun confidence01(ratio: Double): Double = ((log10(max(ratio, 1.0)) - log10(4.0)) / (log10(40.0) - log10(4.0))).coerceIn(0.0, 1.0)
 }

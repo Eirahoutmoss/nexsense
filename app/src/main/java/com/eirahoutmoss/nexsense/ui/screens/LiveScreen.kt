@@ -68,7 +68,11 @@ import com.eirahoutmoss.nexsense.core.sensors.PermissionStatus
 import com.eirahoutmoss.nexsense.core.sensors.Reading
 import com.eirahoutmoss.nexsense.core.sensors.SensorPanel
 import com.eirahoutmoss.nexsense.ui.Fmt
+import com.eirahoutmoss.nexsense.ui.Overlay
 import com.eirahoutmoss.nexsense.ui.Tab
+import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.outlined.SurroundSound
+import androidx.compose.material.icons.outlined.ViewInAr
 import com.eirahoutmoss.nexsense.ui.components.PointEditorDialog
 import com.eirahoutmoss.nexsense.ui.components.SessionBar
 import com.eirahoutmoss.nexsense.ui.theme.NexColors
@@ -78,7 +82,7 @@ import com.eirahoutmoss.nexsense.ui.theme.ValueStyle
 private data class Snapshot(val readings: Map<Channel, Reading>, val orientation: DeviceOrientation?)
 
 @Composable
-fun LiveScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, onGo: (Tab) -> Unit) {
+fun LiveScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, onGo: (Tab) -> Unit, onOverlay: (Overlay) -> Unit = {}) {
     val context = LocalContext.current
     val settings by c.settings.state.collectAsStateWithLifecycle()
     val readings by c.sensorHub.readings.collectAsStateWithLifecycle()
@@ -154,6 +158,28 @@ fun LiveScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, onGo
                         }
                     }
                 }
+            }
+            item {
+                // Otomatik ölçüm: koordinat yazmadan, yürüyerek. Akustik: telefon sabit noktada.
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    androidx.compose.material3.Button(
+                        onClick = { onOverlay(Overlay.AUTO_SCAN) }, enabled = bundle != null,
+                        modifier = Modifier.weight(1f).height(56.dp),
+                    ) {
+                        Icon(Icons.Outlined.ViewInAr, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.live_auto))
+                    }
+                    OutlinedButton(
+                        onClick = { onOverlay(Overlay.ACOUSTIC) }, enabled = bundle != null,
+                        modifier = Modifier.weight(1f).height(56.dp),
+                    ) {
+                        Icon(Icons.Outlined.SurroundSound, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.live_acoustic))
+                    }
+                }
+                Text(
+                    stringResource(R.string.live_auto_hint),
+                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
             item {
                 Text(

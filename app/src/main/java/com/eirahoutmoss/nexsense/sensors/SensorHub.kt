@@ -79,6 +79,7 @@ class SensorHub(context: Context) {
         lastEmitMs.clear()
         _readings.value = emptyMap()
         _orientation.value = null
+        currentAzimuthDeg = null
     }
 
     private val listener = object : SensorEventListener {
@@ -86,9 +87,21 @@ class SensorHub(context: Context) {
         override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
     }
 
+    /** Her ivmeölçer olayında (kısıtlamasız) çağrılır: adım algılama için. (büyüklük m/s², zaman ms) */
+    @Volatile var accelListener: ((Double, Long) -> Unit)? = null
+
+    /** Son hesaplanan pusula yönü (derece, kuzeyden saat yönünde); yoksa null. */
+    @Volatile var currentAzimuthDeg: Double? = null
+        private set
+
+    private var lastOrientationEmitMs = 0L
+
     private fun handle(e: SensorEvent) {
         val channel = sensors.entries.firstOrNull { it.value == e.sensor }?.key ?: return
         val v = e.values
+        if (channel == Channel.ACCELEROMETER) {
+            accelListener?.invoke(VectorMath.magnitude(v[0].toDouble(), v[1].toDouble(), v[2].toDouble()), SystemClock.elapsedRealtime())
+        }
         val values: Map<String, Double?> = when (channel) {
             Channel.MAGNETOMETER, Channel.ACCELEROMETER, Channel.GYROSCOPE -> {
                 if (channel == Channel.ACCELEROMETER) { System.arraycopy(v, 0, gravity, 0, 3); hasGravity = true }
@@ -103,6 +116,7 @@ class SensorHub(context: Context) {
             else -> linkedMapOf("value" to v[0].toDouble())
         }
         val nowMs = SystemClock.elapsedRealtime()
+        if (channel == Channel.ACCELEROMETER || channel == Channel.MAGNETOMETER) updateOrientation(nowMs)
         if (nowMs - (lastEmitMs[channel] ?: 0L) < EMIT_INTERVAL_MS) return
         lastEmitMs[channel] = nowMs
         // Bir değeri hiç hesaplanamayan okuma (ör. titreşim penceresi dolmadı) gösterilmez.
@@ -111,18 +125,23 @@ class SensorHub(context: Context) {
         val accuracy = if (channel == Channel.VIBRATION) null else accuracyName(e.accuracy)
         val reading = Reading(values, eventTimeIso(e.timestamp), accuracy)
         _readings.update { it + (channel to reading) }
-        if (channel == Channel.ACCELEROMETER || channel == Channel.MAGNETOMETER) updateOrientation()
     }
 
-    private fun updateOrientation() {
+    private fun updateOrientation(nowMs: Long) {
         if (!hasGravity || !hasGeomagnetic) return
         if (!SensorManager.getRotationMatrix(rot, null, gravity, geomagnetic)) return
         SensorManager.getOrientation(rot, orient)
+        val az = Math.toDegrees(orient[0].toDouble())
+        currentAzimuthDeg = (az + 360.0) % 360.0
+        if (nowMs - lastOrientationEmitMs < EMIT_INTERVAL_MS) return
+        lastOrientationEmitMs = nowMs
         _orientation.value = DeviceOrientation(
-            azimuthDeg = Math.toDegrees(orient[0].toDouble()),
+            azimuthDeg = az,
             pitchDeg = Math.toDegrees(orient[1].toDouble()),
             rollDeg = Math.toDegrees(orient[2].toDouble()),
             method = "SensorManager.getRotationMatrix(accelerometer, magnetometer)",
+            // Satır sıralı, cihaz → Doğu/Kuzey/Yukarı.
+            rotationMatrix = rot.map { it.toDouble() },
         )
     }
 

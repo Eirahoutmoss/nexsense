@@ -33,6 +33,13 @@ data class Settings(
     val activeProjectId: String?,
     /** Kullanıcı mikrofon iznini bir kez reddettiyse true; izin verilince sıfırlanır. */
     val micDenied: Boolean,
+    /** Ses basıncı ofseti (dB SPL = dBFS + ofset). Referans ölçerle belirlenir; yoksa null (kalibre değil). */
+    val splOffsetDb: Double?,
+    /** Otomatik ölçümde iki nokta arası en az yer değiştirme (m). */
+    val autoStepM: Double,
+    /** Adım tabanlı modda adım boyu (m) ve telefonun tutulduğu yükseklik (m). */
+    val pdrStepLengthM: Double,
+    val pdrHoldHeightM: Double,
 )
 
 /** Uygulama ayarları. Cihazda saklanır; hiçbir yere gönderilmez. */
@@ -47,7 +54,26 @@ class SettingsStore(context: Context) {
         sampling = SamplingRate.fromCode(prefs.getString(K_SAMPLING, null)),
         activeProjectId = prefs.getString(K_ACTIVE, null),
         micDenied = prefs.getBoolean(K_MIC_DENIED, false),
+        splOffsetDb = if (prefs.contains(K_SPL)) prefs.getFloat(K_SPL, 0f).toDouble() else null,
+        autoStepM = prefs.getFloat(K_AUTO_STEP, 0.5f).toDouble(),
+        pdrStepLengthM = prefs.getFloat(K_PDR_STEP, 0.7f).toDouble(),
+        pdrHoldHeightM = prefs.getFloat(K_PDR_HEIGHT, 1.0f).toDouble(),
     )
+
+    fun setSplOffset(db: Double?) {
+        prefs.edit().apply { if (db == null) remove(K_SPL) else putFloat(K_SPL, db.toFloat()) }.apply()
+        _state.update { it.copy(splOffsetDb = db) }
+    }
+
+    fun setAutoStep(m: Double) {
+        prefs.edit().putFloat(K_AUTO_STEP, m.toFloat()).apply()
+        _state.update { it.copy(autoStepM = m) }
+    }
+
+    fun setPdr(stepM: Double, heightM: Double) {
+        prefs.edit().putFloat(K_PDR_STEP, stepM.toFloat()).putFloat(K_PDR_HEIGHT, heightM.toFloat()).apply()
+        _state.update { it.copy(pdrStepLengthM = stepM, pdrHoldHeightM = heightM) }
+    }
 
     fun setTheme(mode: ThemeMode) {
         prefs.edit().putString(K_THEME, mode.code).apply()
@@ -74,5 +100,9 @@ class SettingsStore(context: Context) {
         const val K_SAMPLING = "sampling"
         const val K_ACTIVE = "active_project"
         const val K_MIC_DENIED = "mic_denied"
+        const val K_SPL = "spl_offset_db"
+        const val K_AUTO_STEP = "auto_step_m"
+        const val K_PDR_STEP = "pdr_step_m"
+        const val K_PDR_HEIGHT = "pdr_height_m"
     }
 }

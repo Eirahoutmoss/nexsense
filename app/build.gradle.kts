@@ -20,8 +20,8 @@ android {
         applicationId = "com.eirahoutmoss.nexsense"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
 
         // Güncelleme denetiminin baktığı GitHub deposu (Nex standardı).
         buildConfigField("String", "UPDATE_REPO_OWNER", "\"Eirahoutmoss\"")
@@ -105,6 +105,8 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.kotlinx.coroutines.android)
+    // Otomatik ölçüm: hareket izleme, nokta bulutu, düzlemler (ARCore desteklemeyen cihazda adım tabanlı mod)
+    implementation(libs.arcore)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.junit)

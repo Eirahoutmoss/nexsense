@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Ses seviyesi kanalı. Yalnızca kullanıcı başlatınca istenir; ses kaydedilmez, yalnızca seviye hesaplanır. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Otomatik ölçüm (ARCore): kamera görüntüsü yalnızca cihazda hareket izleme için işlenir, kaydedilmez. -->
+    <uses-permission android:name="android.permission.CAMERA" />
 
     <!-- Hiçbir donanım zorunlu değil: olmayan sensör "Bu cihazda desteklenmiyor" olarak görünür. -->
     <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />
@@ -17,6 +19,9 @@
     <uses-feature android:name="android.hardware.sensor.ambient_temperature" android:required="false" />
     <uses-feature android:name="android.hardware.sensor.relative_humidity" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.ar" android:required="false" />
+    <uses-feature android:glEsVersion="0x00020000" android:required="false" />
 
     <application
         android:name=".NexSenseApp"
@@ -42,5 +47,19 @@
         <receiver
             android:name=".update.InstallResultReceiver"
             android:exported="false" />
+
+        <!-- ARCore isteğe bağlı: yoksa adım tabanlı otomatik ölçüm kullanılır. -->
+        <meta-data android:name="com.google.ar.core" android:value="optional" />
+
+        <!-- Yalnızca kullanıcı "Paylaş" dediğinde ve onay verdiğinde, seçtiği uygulamaya geçici okuma izni. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>

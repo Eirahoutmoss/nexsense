@@ -55,7 +55,12 @@ import com.eirahoutmoss.nexsense.core.scene.Bounds
 import com.eirahoutmoss.nexsense.core.scene.OrbitCamera
 import com.eirahoutmoss.nexsense.core.scene.Vec3
 import com.eirahoutmoss.nexsense.ui.Fmt
+import com.eirahoutmoss.nexsense.ui.Overlay
 import com.eirahoutmoss.nexsense.ui.Tab
+import com.eirahoutmoss.nexsense.ui.scene.SceneScan
+import com.eirahoutmoss.nexsense.core.analysis.Interpolation
+import com.eirahoutmoss.nexsense.core.model.PositionSource
+import androidx.compose.material3.AssistChip
 import com.eirahoutmoss.nexsense.ui.components.DemoBadge
 import com.eirahoutmoss.nexsense.ui.components.EmptyState
 import com.eirahoutmoss.nexsense.ui.scene.SceneItem
@@ -70,6 +75,9 @@ fun layerName(kind: LayerKind): String = stringResource(
         LayerKind.MAGNETIC -> R.string.layer_magnetic
         LayerKind.MOTION -> R.string.layer_motion
         LayerKind.ACOUSTIC -> R.string.layer_acoustic
+        LayerKind.SPL -> R.string.layer_spl
+        LayerKind.REVERB -> R.string.layer_reverb
+        LayerKind.SCAN -> R.string.layer_scan
         LayerKind.TEMPERATURE -> R.string.layer_temperature
         LayerKind.HUMIDITY -> R.string.layer_humidity
         LayerKind.NOTES -> R.string.layer_notes
@@ -77,24 +85,42 @@ fun layerName(kind: LayerKind): String = stringResource(
 )
 
 @Composable
-fun SpaceScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, onGo: (Tab) -> Unit) {
+fun SpaceScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, onGo: (Tab) -> Unit, onOverlay: (Overlay) -> Unit = {}) {
     if (bundle == null) {
         NoProject(modifier, onGo)
         return
     }
     val projectId = bundle.project.id
-    val layers = remember(bundle) { LayerAnalysis.computeAll(bundle) }
-    val items = remember(bundle) {
-        bundle.points.filter { it.isPlaced }.map {
-            SceneItem(it.id, it.label, Vec3(it.x!!, it.y!!, it.z!!), it.notes.isNotBlank())
+    // Zaman çizgisi: seçilen oturumun verisi (null = tümü)
+    var sessionFilter by rememberSaveable(projectId) { mutableStateOf<String?>(null) }
+    val view = remember(bundle, sessionFilter) {
+        val sf = sessionFilter
+        if (sf == null) bundle else bundle.copy(
+            points = bundle.points.filter { it.sessionId == sf },
+            samples = bundle.samples.filter { it.sessionId == sf },
+            scans = bundle.scans.filter { it.sessionId == sf },
+        )
+    }
+    val layers = remember(view) { LayerAnalysis.computeAll(view) }
+    val items = remember(view) {
+        view.points.filter { it.isPlaced }.map {
+            SceneItem(it.id, it.label, Vec3(it.x!!, it.y!!, it.z!!), it.notes.isNotBlank(), it.positionSource == PositionSource.PDR)
         }
     }
-    val unplaced = bundle.points.count { !it.isPlaced }
+    val scan = remember(view) {
+        val all = view.scans.flatMap { it.points }
+        val stride = maxOf(1, all.size / 4000)
+        SceneScan(all.filterIndexed { i, _ -> i % stride == 0 }, view.scans.flatMap { it.planes }, view.scans.map { it.trajectory }.filter { it.size > 1 })
+    }
+    val unplaced = view.points.count { !it.isPlaced }
     var selection by remember(projectId) { mutableStateOf(LayerSelection()) }
-    var camera by remember(projectId) { mutableStateOf(OrbitCamera.fit(Bounds.of(items.map { it.position }))) }
+    var showEstimate by rememberSaveable(projectId) { mutableStateOf(false) }
+    val sceneBounds = Bounds.of(items.map { it.position } + scan.points.map { Vec3(it.x, it.y, it.z) })
+    var camera by remember(projectId) { mutableStateOf(OrbitCamera.fit(sceneBounds)) }
     var selectedId by rememberSaveable(projectId) { mutableStateOf<String?>(null) }
     var editingOrigin by remember { mutableStateOf(false) }
     val colorData: LayerData? = selection.colorLayer?.let { layers[it] }?.takeIf { it.status == LayerStatus.HAS_DATA }
+    val estimate = remember(view, colorData, showEstimate) { if (showEstimate && colorData != null) Interpolation.idw(view, colorData, bundle.analysis) else null }
 
     Column(modifier.fillMaxSize()) {
         // Katman kontrolleri
@@ -119,14 +145,33 @@ fun SpaceScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, onG
                 )
             }
         }
+        // Tahmin ve zaman çizgisi
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FilterChip(
+                selected = showEstimate, enabled = colorData != null,
+                onClick = { showEstimate = !showEstimate },
+                label = { Text(stringResource(R.string.space_estimate)) },
+            )
+            AssistChip(onClick = { onOverlay(Overlay.ANALYSIS) }, label = { Text(stringResource(R.string.analysis_title)) })
+            if (bundle.sessions.size > 1) {
+                FilterChip(sessionFilter == null, { sessionFilter = null }, { Text(stringResource(R.string.filter_all_sessions)) })
+                bundle.sessions.forEachIndexed { i, ss ->
+                    FilterChip(sessionFilter == ss.id, { sessionFilter = ss.id }, { Text(stringResource(R.string.session_n, i + 1)) })
+                }
+            }
+        }
 
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            if (items.isEmpty()) {
+            if (items.isEmpty() && scan.isEmpty) {
                 EmptyState(
                     icon = Icons.Outlined.MyLocation,
                     title = stringResource(R.string.space_empty_title),
                     body = stringResource(R.string.space_empty_body, unplaced),
                 ) {
+                    TextButton(onClick = { onOverlay(Overlay.AUTO_SCAN) }) { Text(stringResource(R.string.auto_title)) }
                     TextButton(onClick = { onGo(Tab.LIVE) }) { Text(stringResource(R.string.point_add)) }
                     TextButton(onClick = { onGo(Tab.MEASUREMENTS) }) { Text(stringResource(R.string.tab_measurements)) }
                 }
@@ -142,13 +187,22 @@ fun SpaceScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, onG
                     onSelect = { selectedId = it },
                     description = stringResource(R.string.space_scene_description, items.size),
                     modifier = Modifier.fillMaxSize(),
+                    scan = if (selection.isVisible(LayerKind.SCAN)) scan else null,
+                    estimate = estimate,
                 )
                 Column(Modifier.align(Alignment.TopEnd).padding(8.dp)) {
-                    IconButton(onClick = { camera = OrbitCamera.fit(Bounds.of(items.map { it.position })) }) {
+                    IconButton(onClick = { camera = OrbitCamera.fit(sceneBounds) }) {
                         Icon(Icons.Outlined.CenterFocusStrong, contentDescription = stringResource(R.string.space_fit), tint = NexColors.Cyan)
                     }
                 }
                 if (bundle.hasDemoData) DemoBadge(Modifier.align(Alignment.TopStart).padding(10.dp))
+                if (estimate != null) {
+                    Text(
+                        stringResource(R.string.space_estimate_badge, estimate.estimatedCells),
+                        color = NexColors.Demo, style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.align(Alignment.BottomStart).padding(10.dp),
+                    )
+                }
             }
 
             val sel = selectedId?.let { id -> bundle.points.firstOrNull { it.id == id } }

@@ -220,6 +220,27 @@ class PhasesTest {
         assertTrue(Sonar.echoes(DoubleArray(5000), fs, c).isEmpty())
     }
 
+    @Test fun pingTrainSurvivesUnknownLatency() {
+        val fs = 48_000
+        val ch = Sonar.chirp(fs, 3000.0, 9000.0, 0.004)
+        val c = Sonar.soundSpeed(20.0)
+        val play = Sonar.pingTrain(ch, fs, pings = 6, spacingS = 0.1)
+        val latency = 4321 // hoparlör gecikmesi (bilinmiyor)
+        val echoDelay = (2 * 1.8 / c * fs).toInt()
+        val x = DoubleArray(play.size + fs / 2 + latency)
+        val r = kotlin.random.Random(5)
+        for (i in play.indices) {
+            x[latency + i] += play[i]
+            if (latency + echoDelay + i < x.size) x[latency + echoDelay + i] += 0.2 * play[i]
+        }
+        for (i in x.indices) x[i] += r.nextDouble(-0.02, 0.02)
+        val corr = Sonar.correlate(x, ch, x.size - ch.size)
+        val avg = Sonar.alignPings(corr, fs, 0.1, 6, c, 5.0)
+        val e = Sonar.echoes(avg, fs, c, maxDistM = 5.0)
+        assertTrue(e.isNotEmpty())
+        assertEquals(1.8, e.first().distanceM, 0.03)
+    }
+
     @Test fun soundPressureAndDominantFrequency() {
         val fs = 48_000
         val sine = FloatArray(fs) { (0.5 * sin(2 * PI * 1000.0 * it / fs)).toFloat() }

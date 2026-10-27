@@ -38,10 +38,45 @@ import com.eirahoutmoss.nexsense.ui.components.KeyValue
 import com.eirahoutmoss.nexsense.ui.components.SectionCard
 import com.eirahoutmoss.nexsense.ui.components.SessionBar
 import java.time.LocalDate
+import android.content.Intent
+import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.PictureAsPdf
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.ViewInAr
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import com.eirahoutmoss.nexsense.core.layers.LayerAnalysis
+import com.eirahoutmoss.nexsense.core.layers.LayerKind
+import com.eirahoutmoss.nexsense.core.layers.LayerStatus
+import com.eirahoutmoss.nexsense.core.model.Scan
+import com.eirahoutmoss.nexsense.core.model.ScanMethod
+import com.eirahoutmoss.nexsense.ui.Overlay
+import com.eirahoutmoss.nexsense.ui.components.ConfirmDialog
+import kotlinx.coroutines.launch
 
 @Composable
-fun ReportScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, onGo: (Tab) -> Unit) {
+fun ReportScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, onGo: (Tab) -> Unit, onOverlay: (Overlay) -> Unit = {}) {
     val projectId = bundle?.project?.id
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    var sharing by remember { mutableStateOf(false) }
+    var busyShare by remember { mutableStateOf(false) }
+    var deletingScan by remember { mutableStateOf<String?>(null) }
+    val pdfLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
+        if (uri != null && projectId != null) c.actions.exportPdf(projectId, uri)
+    }
+    val plyLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+        if (uri != null && projectId != null) c.actions.exportPly(projectId, uri, LayerKind.entries.firstOrNull { k -> k.isMeasurement && bundle?.let { LayerAnalysis.compute(it, k).status == LayerStatus.HAS_DATA } == true })
+    }
+    val caseLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri != null && projectId != null) c.actions.exportCase(projectId, uri)
+    }
     val csvLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null && projectId != null) c.actions.exportCsv(projectId, uri)
     }
@@ -86,6 +121,42 @@ fun ReportScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, on
                 }
             }
 
+            SectionCard(stringResource(R.string.report_reports)) {
+                Text(stringResource(R.string.report_reports_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Button(onClick = { pdfLauncher.launch("$base-rapor.pdf") }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Outlined.PictureAsPdf, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.export_pdf))
+                }
+                OutlinedButton(onClick = { plyLauncher.launch("$base-model.ply") }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Outlined.ViewInAr, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.export_ply))
+                }
+                OutlinedButton(onClick = { caseLauncher.launch("$base-vaka.zip") }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Outlined.Inventory2, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.export_case))
+                }
+                OutlinedButton(onClick = { sharing = true }, enabled = !busyShare, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Outlined.Share, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.share_case))
+                }
+                OutlinedButton(onClick = { onOverlay(Overlay.ANALYSIS) }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Outlined.Insights, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.analysis_title))
+                }
+            }
+
+            if (bundle.scans.isNotEmpty()) {
+                SectionCard(stringResource(R.string.report_scans)) {
+                    for (sc in bundle.scans) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(scanMethodLabel(sc.method), style = MaterialTheme.typography.labelLarge)
+                                Text(
+                                    stringResource(R.string.report_scan_line, sc.points.size, sc.planes.size, Fmt.num(trackLength(sc), 1), Fmt.dateTime(sc.startedAt)),
+                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            TextButton(onClick = { deletingScan = sc.id }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
+                        }
+                    }
+                }
+            }
+
             SectionCard(stringResource(R.string.report_sessions)) {
                 SessionBar(c, bundle)
                 if (bundle.sessions.isEmpty()) {
@@ -122,7 +193,54 @@ fun ReportScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, on
             Text(stringResource(R.string.privacy_note), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+
+    if (sharing && bundle != null) {
+        // Açık onay: neyin, kime gideceği söylenir. Onaysız hiçbir veri cihazdan çıkmaz.
+        AlertDialog(
+            onDismissRequest = { sharing = false },
+            title = { Text(stringResource(R.string.share_title)) },
+            text = { Text(stringResource(R.string.share_consent, bundle.project.name, bundle.points.size, bundle.samples.size, bundle.scans.sumOf { it.points.size })) },
+            confirmButton = {
+                TextButton(onClick = {
+                    sharing = false
+                    busyShare = true
+                    scope.launch {
+                        val uri = c.actions.prepareShare(bundle.project.id)
+                        busyShare = false
+                        if (uri != null) {
+                            val send = Intent(Intent.ACTION_SEND).setType("application/zip").putExtra(Intent.EXTRA_STREAM, uri)
+                                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            context.startActivity(Intent.createChooser(send, context.getString(R.string.share_case)))
+                        }
+                    }
+                }) { Text(stringResource(R.string.share_confirm)) }
+            },
+            dismissButton = { TextButton(onClick = { sharing = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    deletingScan?.let { id ->
+        ConfirmDialog(
+            title = stringResource(R.string.scan_delete),
+            text = stringResource(R.string.scan_delete_confirm),
+            confirm = stringResource(R.string.delete),
+            onConfirm = { bundle?.let { c.actions.deleteScan(it.project.id, id) } },
+            onDismiss = { deletingScan = null },
+        )
+    }
 }
+
+@Composable
+fun scanMethodLabel(m: ScanMethod): String = stringResource(
+    when (m) {
+        ScanMethod.ARCORE -> R.string.scan_arcore
+        ScanMethod.PDR -> R.string.scan_pdr
+        ScanMethod.ACOUSTIC_ECHO -> R.string.scan_acoustic
+        ScanMethod.DEMO -> R.string.demo_badge
+    },
+)
+
+private fun trackLength(sc: Scan): Double =
+    sc.trajectory.zipWithNext().sumOf { (p, q) -> Math.sqrt((p.x - q.x) * (p.x - q.x) + (p.y - q.y) * (p.y - q.y) + (p.z - q.z) * (p.z - q.z)) }
 
 /** Dosya adı için güvenli metin (Türkçe harfler korunur). */
 private fun safeFileName(name: String): String =

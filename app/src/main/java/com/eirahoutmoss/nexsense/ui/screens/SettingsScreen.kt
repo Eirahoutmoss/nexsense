@@ -43,6 +43,18 @@ import com.eirahoutmoss.nexsense.settings.ThemeMode
 import com.eirahoutmoss.nexsense.ui.components.KeyValue
 import com.eirahoutmoss.nexsense.ui.components.SectionCard
 import com.eirahoutmoss.nexsense.update.UpdateState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.KeyboardType
+import com.eirahoutmoss.nexsense.core.acoustic.SoundPressure
+import com.eirahoutmoss.nexsense.sensors.AcousticException
+import com.eirahoutmoss.nexsense.sensors.AcousticIo
+import com.eirahoutmoss.nexsense.ui.Fmt
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(c: AppContainer, modifier: Modifier) {
@@ -105,7 +117,14 @@ fun SettingsScreen(c: AppContainer, modifier: Modifier) {
                 stringResource(R.string.ch_microphone),
                 stringResource(if (micGranted) R.string.permission_granted else R.string.permission_not_granted),
             )
-            Text(stringResource(R.string.permissions_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            KeyValue(
+                stringResource(R.string.permission_camera),
+                stringResource(
+                    if (context.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) R.string.permission_granted
+                    else R.string.permission_not_granted,
+                ),
+            )
+            Text(stringResource(R.string.permissions_note2), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             TextButton(onClick = {
                 context.startActivity(
                     Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
@@ -113,6 +132,9 @@ fun SettingsScreen(c: AppContainer, modifier: Modifier) {
                 )
             }) { Text(stringResource(R.string.open_settings)) }
         }
+
+        CalibrationCard(c)
+        PdrCard(c)
 
         SectionCard(stringResource(R.string.settings_demo)) {
             Text(stringResource(R.string.demo_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -139,6 +161,65 @@ fun SettingsScreen(c: AppContainer, modifier: Modifier) {
             Text(stringResource(R.string.about_disclaimer), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(stringResource(R.string.privacy_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+    }
+}
+
+/** Ses basıncı kalibrasyonu: referans ses ölçerin gösterdiği değer girilir, telefon aynı anda 3 sn ölçer. */
+@Composable
+private fun CalibrationCard(c: AppContainer) {
+    val context = LocalContext.current
+    val settings by c.settings.state.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    val io = remember { AcousticIo(context) }
+    var ref by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var err by remember { mutableStateOf<Int?>(null) }
+    SectionCard(stringResource(R.string.settings_calibration)) {
+        Text(stringResource(R.string.calibration_help), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            settings.splOffsetDb?.let { stringResource(R.string.calibration_current, Fmt.num(it, 1)) } ?: stringResource(R.string.calibration_none),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        OutlinedTextField(
+            ref, { ref = it }, label = { Text(stringResource(R.string.calibration_reference)) }, singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        )
+        val refV = Fmt.parseOptional(ref)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(enabled = !busy && refV != null && !refV.isNaN() && refV in 20.0..130.0 && io.hasPermission(), onClick = {
+                busy = true; err = null
+                scope.launch {
+                    try {
+                        val pcm = io.record(48_000, 3.0)
+                        val leq = SoundPressure.leqDbfs(pcm)
+                        if (leq != null && refV != null) c.settings.setSplOffset(SoundPressure.offsetFrom(refV, leq))
+                    } catch (e: AcousticException) {
+                        err = acousticError(e.code)
+                    } finally {
+                        busy = false
+                    }
+                }
+            }) { Text(stringResource(if (busy) R.string.acoustic_running else R.string.calibration_measure)) }
+            if (settings.splOffsetDb != null) TextButton(onClick = { c.settings.setSplOffset(null) }) { Text(stringResource(R.string.calibration_clear)) }
+        }
+        if (!io.hasPermission()) Text(stringResource(R.string.mic_permission_why), style = MaterialTheme.typography.labelSmall)
+        err?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+    }
+}
+
+@Composable
+private fun PdrCard(c: AppContainer) {
+    val settings by c.settings.state.collectAsStateWithLifecycle()
+    var step by remember { mutableStateOf(Fmt.num(settings.pdrStepLengthM, 2)) }
+    var height by remember { mutableStateOf(Fmt.num(settings.pdrHoldHeightM, 2)) }
+    SectionCard(stringResource(R.string.settings_pdr)) {
+        Text(stringResource(R.string.pdr_help), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val kb = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+        OutlinedTextField(step, { step = it }, label = { Text(stringResource(R.string.pdr_step)) }, singleLine = true, keyboardOptions = kb)
+        OutlinedTextField(height, { height = it }, label = { Text(stringResource(R.string.pdr_height)) }, singleLine = true, keyboardOptions = kb)
+        val sv = Fmt.parseOptional(step); val hv = Fmt.parseOptional(height)
+        val ok = sv != null && hv != null && !sv.isNaN() && !hv.isNaN() && sv in 0.3..1.2 && hv in 0.2..2.5
+        OutlinedButton(enabled = ok, onClick = { c.settings.setPdr(sv!!, hv!!) }) { Text(stringResource(R.string.save)) }
     }
 }
 

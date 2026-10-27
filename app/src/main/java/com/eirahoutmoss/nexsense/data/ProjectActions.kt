@@ -4,9 +4,15 @@ import android.content.Context
 import android.net.Uri
 import androidx.annotation.StringRes
 import com.eirahoutmoss.nexsense.R
+import com.eirahoutmoss.nexsense.export.ReportExporter
 import com.eirahoutmoss.nexsense.core.demo.DemoData
 import com.eirahoutmoss.nexsense.core.export.CsvExporter
+import com.eirahoutmoss.nexsense.core.layers.LayerKind
+import com.eirahoutmoss.nexsense.core.model.AnalysisSettings
 import com.eirahoutmoss.nexsense.core.model.DeviceOrientation
+import com.eirahoutmoss.nexsense.core.model.MeasurementPoint
+import com.eirahoutmoss.nexsense.core.model.PositionSource
+import com.eirahoutmoss.nexsense.core.model.Scan
 import com.eirahoutmoss.nexsense.core.model.SampleSource
 import com.eirahoutmoss.nexsense.core.model.ValidationException
 import com.eirahoutmoss.nexsense.core.model.ValidationIssue
@@ -110,23 +116,109 @@ class ProjectActions(
         readings: Map<Channel, Reading>,
         orientation: DeviceOrientation?,
     ) = launchOp(R.string.msg_point_saved) {
-        val drafts = readings.map { (ch, r) ->
-            val derived = ch == Channel.VIBRATION || ch == Channel.MICROPHONE
-            SampleDraft(
-                sensorType = ch.sensorType,
-                values = r.values,
-                timestamp = r.timestampIso,
-                source = if (derived) SampleSource.DERIVED else SampleSource.DEVICE,
-                quality = r.accuracy,
-                deviceOrientation = orientation,
-                calibrationInfo = when (ch) {
-                    Channel.VIBRATION -> VibrationWindow.METHOD
-                    Channel.MICROPHONE -> SoundLevel.METHOD
-                    else -> "factory (uncalibrated by NexSense)"
+        val drafts = draftsFrom(readings, orientation)
+        repository.addPoint(projectId, label, notes, x, y, z, drafts)
+    }
+
+    /**
+     * Noktayı hemen ekler ve döndürür (otomatik ölçüm, akustik ölçüm için). Hata olursa ileti gösterir, null döner.
+     * [quiet]: başarıda ileti gösterme (otomatik kayıtta her nokta için ileti olmasın).
+     */
+    suspend fun addPointNow(
+        projectId: String,
+        label: String,
+        notes: String,
+        x: Double?, y: Double?, z: Double?,
+        drafts: List<SampleDraft>,
+        positionSource: PositionSource?,
+        positionConfidence: Double?,
+        quiet: Boolean = true,
+    ): MeasurementPoint? = io(if (quiet) null else R.string.msg_point_saved) {
+        repository.addPoint(projectId, label, notes, x, y, z, drafts, positionSource, positionConfidence)
+    }
+
+    /** Canlı okumaları ölçüm taslaklarına çevirir. */
+    fun draftsFrom(readings: Map<Channel, Reading>, orientation: DeviceOrientation?): List<SampleDraft> = readings.map { (ch, r) ->
+        val derived = ch == Channel.VIBRATION || ch == Channel.MICROPHONE
+        SampleDraft(
+            sensorType = ch.sensorType,
+            values = r.values,
+            timestamp = r.timestampIso,
+            source = if (derived) SampleSource.DERIVED else SampleSource.DEVICE,
+            quality = r.accuracy,
+            deviceOrientation = orientation,
+            calibrationInfo = when (ch) {
+                Channel.VIBRATION -> VibrationWindow.METHOD
+                Channel.MICROPHONE -> SoundLevel.METHOD
+                else -> "factory (uncalibrated by NexSense)"
+            },
+        )
+    }
+
+    suspend fun addSamplesNow(projectId: String, pointId: String, drafts: List<SampleDraft>): Boolean =
+        io(R.string.msg_acoustic_saved) { repository.addSamples(projectId, pointId, drafts) } != null
+
+    suspend fun addScanNow(projectId: String, scan: Scan): Scan? = io(R.string.msg_scan_saved) { repository.addScan(projectId, scan) }
+
+    suspend fun startSessionNow(projectId: String, notes: String = ""): Boolean =
+        io(null) { repository.startSession(projectId, notes) } != null
+
+    suspend fun endSessionNow(projectId: String): Boolean = io(null) { repository.endSession(projectId) } != null
+
+    fun deleteScan(projectId: String, scanId: String) = launchOp(R.string.msg_scan_deleted) { repository.deleteScan(projectId, scanId) }
+
+    fun setAnalysis(projectId: String, a: AnalysisSettings) = launchOp(R.string.msg_saved) { repository.setAnalysis(projectId, a) }
+
+    fun setNorthAngle(projectId: String, deg: Double?) = launchOp(R.string.msg_saved) { repository.setNorthAngle(projectId, deg) }
+
+    fun exportPdf(projectId: String, uri: Uri) = launchOp(R.string.msg_exported) {
+        val b = repository.get(projectId) ?: throw NoSuchElementException(projectId)
+        writeBytes(uri, reports.pdf(b))
+    }
+
+    fun exportPly(projectId: String, uri: Uri, colorLayer: LayerKind?) = launchOp(R.string.msg_exported) {
+        val b = repository.get(projectId) ?: throw NoSuchElementException(projectId)
+        writeBytes(uri, reports.ply(b, colorLayer))
+    }
+
+    fun exportCase(projectId: String, uri: Uri) = launchOp(R.string.msg_exported) {
+        val b = repository.get(projectId) ?: throw NoSuchElementException(projectId)
+        writeBytes(uri, reports.caseFile(b))
+    }
+
+    /** Vaka dosyasını önbelleğe yazar ve paylaşım için geçici adres döndürür (yalnızca kullanıcı onayından sonra çağrılır). */
+    suspend fun prepareShare(projectId: String): Uri? = io(null) {
+        val b = repository.get(projectId) ?: throw NoSuchElementException(projectId)
+        reports.shareFile(b)
+    }
+
+    private val reports by lazy { ReportExporter(context) }
+
+    private fun writeBytes(uri: Uri, bytes: ByteArray) {
+        val out = context.contentResolver.openOutputStream(uri, "wt") ?: throw IOException(context.getString(R.string.err_cannot_open))
+        out.use { it.write(bytes) }
+    }
+
+    private suspend fun <T> io(@StringRes okMessage: Int?, block: () -> T): T? {
+        val result: Result<T> = try {
+            Result.success(withContext(Dispatchers.IO) { block() })
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+        result.exceptionOrNull()?.let { e ->
+            _messages.tryEmit(
+                when (e) {
+                    is ValidationException -> UiMessage(messageFor(e.issues.firstOrNull()?.code), e.issues.firstOrNull()?.detail.orEmpty())
+                    is IOException -> UiMessage(R.string.err_io, e.message.orEmpty())
+                    else -> UiMessage(R.string.err_generic, e.message ?: e.javaClass.simpleName)
                 },
             )
+            return null
         }
-        repository.addPoint(projectId, label, notes, x, y, z, drafts)
+        okMessage?.let { _messages.tryEmit(UiMessage(it)) }
+        return result.getOrNull()
     }
 
     fun updatePoint(projectId: String, pointId: String, label: String, notes: String, x: Double?, y: Double?, z: Double?) =
