@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: derleme-${{ github.ref }}
@@ -31,13 +32,23 @@ jobs:
       - name: Çekirdek testleri
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon :core:test
+          set -o pipefail
+          ./gradlew --no-daemon :core:test 2>&1 | tee -a derleme.log
+
+      - name: Uygulamayı derle
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon :app:compileDebugKotlin 2>&1 | tee -a derleme.log
 
       - name: Android lint (statik analiz)
-        run: ./gradlew --no-daemon :app:lintDebug
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon :app:lintDebug 2>&1 | tee -a derleme.log
 
       - name: Deneme APK'sı
-        run: ./gradlew --no-daemon :app:assembleDebug
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon :app:assembleDebug 2>&1 | tee -a derleme.log
 
       - name: APK'yı adlandır
         run: cp app/build/outputs/apk/debug/app-debug.apk NexSense-deneme.apk
@@ -56,7 +67,28 @@ jobs:
             core/build/reports/tests/
             core/build/test-results/
             app/build/reports/lint-results-debug.html
+            app/build/reports/lint-results-debug.txt
+            derleme.log
           if-no-files-found: ignore
+
+      - name: Hata özetini PR'a yaz
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "### Derleme başarısız — özet"
+            echo '```'
+            grep -E "^e: |error:|Error:|FAILED|What went wrong|> Task .* FAILED|Lint found|^\s+at |Exception" derleme.log | head -n 120 || true
+            echo '```'
+            if [ -f app/build/reports/lint-results-debug.txt ]; then
+              echo "#### Lint"
+              echo '```'
+              grep -B1 -A3 -E ": Error:" app/build/reports/lint-results-debug.txt | head -n 150 || true
+              echo '```'
+            fi
+          } > ozet.md
+          gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" -F body=@ozet.md > /dev/null
 
       - name: Ön sürümü güncelle
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

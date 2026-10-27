@@ -84,6 +84,8 @@ android {
         abortOnError = true
         warningsAsErrors = false
         checkDependencies = false
+        textReport = true
+        textOutput = file("build/reports/lint-results-debug.txt")
         // Bağımlılık sürümleri bilerek NexTools/NexYapı ile aynı tutulur (bkz. gradle/libs.versions.toml).
         disable += setOf("GradleDependency", "AndroidGradlePluginVersion", "NewerVersionAvailable", "OldTargetApi")
     }
