@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Yalnızca "Güncellemeleri denetle" düğmesi için. Ölçüm verisi hiçbir yere gönderilmez. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Uygulama içinden güncelleme kurmak için (doğrudan APK dağıtımı, Nex standardı). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Ses seviyesi kanalı. Yalnızca kullanıcı başlatınca istenir; ses kaydedilmez, yalnızca seviye hesaplanır. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Hiçbir donanım zorunlu değil: olmayan sensör "Bu cihazda desteklenmiyor" olarak görünür. -->
+    <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.compass" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.light" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.barometer" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.ambient_temperature" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.relative_humidity" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
+    <application
+        android:name=".NexSenseApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.NexSense">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <receiver
+            android:name=".update.InstallResultReceiver"
+            android:exported="false" />
+    </application>
+</manifest>
