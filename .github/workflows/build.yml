@@ -71,6 +71,43 @@ jobs:
             derleme.log
           if-no-files-found: ignore
 
+      - name: Sonuç özetini PR'a yaz
+        if: success() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY' > sonuc.md
+          import glob, re, collections, xml.etree.ElementTree as ET
+          t = f = e = s = 0
+          for x in glob.glob('core/build/test-results/test/*.xml'):
+              r = ET.parse(x).getroot()
+              t += int(r.get('tests', 0)); f += int(r.get('failures', 0)); e += int(r.get('errors', 0)); s += int(r.get('skipped', 0))
+          print('### Derleme başarılı')
+          print(f'- Çekirdek testleri: **{t}** test, {f} başarısız, {e} hata, {s} atlandı')
+          try:
+              txt = open('app/build/reports/lint-results-debug.txt', encoding='utf-8').read()
+          except OSError:
+              txt = ''
+          ids = collections.Counter(re.findall(r': (Warning|Error|Information): .*\[([A-Za-z0-9]+)\]', txt))
+          errs = sum(v for (k, _), v in ids.items() if k == 'Error')
+          warns = sum(v for (k, _), v in ids.items() if k == 'Warning')
+          print(f'- Android lint: {errs} hata, {warns} uyarı')
+          for (k, i), v in ids.most_common(40):
+              print(f'  - {k} `{i}` × {v}')
+          kw = sorted(set(l.replace('file:///home/runner/work/nexsense/nexsense/', '') for l in open('derleme.log', encoding='utf-8', errors='replace').read().splitlines() if l.startswith('w: ')))
+          print(f'- Kotlin derleyici uyarısı: {len(kw)}')
+          if kw:
+              print('<details><summary>Kotlin uyarıları</summary>\n\n```')
+              print('\n'.join(kw[:60]))
+              print('```\n</details>')
+          lines = [l for l in txt.splitlines() if ': Warning: ' in l][:60]
+          if lines:
+              print('<details><summary>Uyarı satırları</summary>\n\n```')
+              print('\n'.join(l.replace('/home/runner/work/nexsense/nexsense/', '') for l in lines))
+              print('```\n</details>')
+          PY
+          gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" -F body=@sonuc.md > /dev/null
+
       - name: Hata özetini PR'a yaz
         if: failure() && github.event_name == 'pull_request'
         env:
