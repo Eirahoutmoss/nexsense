@@ -120,7 +120,8 @@ class SpaceExplorationTest {
             val fr = e.update(GuideSignals(t, tracking = true, position = Vec3.ZERO, facing = Vec3(cos(f), sin(f), 0.0), accelMagnitude = 9.81))
             for (c in fr.captures) {
                 assertEquals(CaptureKind.ACOUSTIC_PING, c.kind)
-                assertEquals(yaw, c.yawDeg!!, 1e-6)
+                val dy = ((c.yawDeg!! - yaw) % 360.0 + 540.0) % 360.0 - 180.0
+                assertEquals("aynı yön (±180° sarması)", 0.0, dy, 1e-6)
                 assertEquals(Hint.WORKING, fr.hint)
                 pings++
                 e.completePing(c.yawDeg!!, RadarReading(c.yawDeg!!, listOf(2.0), 0.8))
