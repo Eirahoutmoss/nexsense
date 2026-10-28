@@ -235,6 +235,7 @@ fun scanMethodLabel(m: ScanMethod): String = stringResource(
         ScanMethod.ARCORE -> R.string.scan_arcore
         ScanMethod.PDR -> R.string.scan_pdr
         ScanMethod.ACOUSTIC_ECHO -> R.string.scan_acoustic
+        ScanMethod.ACOUSTIC_RADAR -> R.string.scan_radar
         ScanMethod.DEMO -> R.string.demo_badge
     },
 )

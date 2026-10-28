@@ -203,6 +203,8 @@ NexSense is an exploration and logging tool, not a professional instrument.
     <string name="guide_honesty">Quality is based on how many steps were verified by sensors and how often position was lost; it is not a grade or a test.</string>
     <string name="guide_intro">Pick a short mission. You see one instruction at a time on screen (and spoken, if you like): raise, lower, walk, turn, put down. The phone checks your movement with its sensors, corrects you when needed (\"a bit higher\", \"slow down\") and saves the measurement itself at the right moment. No coordinates or settings to think about.</string>
     <string name="guide_manual_note">This step is confirmed by hand; the saved position was not measured and is marked \"estimated\".</string>
+    <string name="guide_map_done">No frontier left to explore</string>
+    <string name="guide_map_status">Free area ≈ %1$s m² · frontiers: %2$d</string>
     <string name="guide_method_ar">Position: ARCore (camera + motion) — precise</string>
     <string name="guide_method_pdr">Position: step counting + compass — rough estimate</string>
     <string name="guide_minutes">Time: ~%1$d′ · steps: %2$d</string>
@@ -216,12 +218,15 @@ NexSense is an exploration and logging tool, not a professional instrument.
     <string name="guide_quality_fair">Measurement quality: fair</string>
     <string name="guide_quality_good">Measurement quality: good</string>
     <string name="guide_quality_poor">Measurement quality: poor</string>
+    <string name="guide_radar_honesty">Rings are estimates: the phone speaker is not directional.</string>
+    <string name="guide_radar_status">Radar: %1$d of %2$d directions</string>
     <string name="guide_see_space">See in Space</string>
     <string name="guide_skip">Skip</string>
     <string name="guide_step_of">Step %1$d / %2$d · saved: %3$d</string>
     <string name="guide_stop">Finish</string>
     <string name="guide_summary_counts">Automatic: %1$d · confirmed: %2$d · skipped: %3$d · saved points: %4$d</string>
     <string name="guide_summary_losses">Tracking losses: %1$d</string>
+    <string name="guide_summary_map">Free-space map: ≈ %1$s m² free area, radar rays: %2$d.</string>
     <string name="guide_summary_title">%1$s complete</string>
     <string name="guide_tip_fair">Some steps were confirmed by hand or skipped. Trying again in better light with slower movement raises the share of automatic measurements.</string>
     <string name="guide_tip_good">Your data is on the Space screen. Repeat this mission another day and the Analysis screen will show changes at the same spots.</string>
@@ -299,10 +304,14 @@ NexSense is an exploration and logging tool, not a professional instrument.
     <string name="mic_permission_why">Microphone permission is needed to measure sound level. Audio is not recorded; only the level is computed on the device.</string>
     <string name="mic_start">Start sound level</string>
     <string name="mic_stop">Stop</string>
+    <string name="mission_explore">Free exploration</string>
+    <string name="mission_explore_desc">Assumes no corners, walls or room shape: cave, corridor, rubble edge, open ground… It listens to the surroundings with a sound radar, finds the edge between known and unknown on the map and guides you there. Ends by itself when nothing is left to explore.</string>
     <string name="mission_first">First discovery</string>
     <string name="mission_first_desc">Get to know your phone: rest, compass calibration, three heights, a full turn, a 2 m walk and back. Gives the room\'s first vertical and horizontal profile.</string>
     <string name="mission_magnetic">Wall magnetic trace</string>
     <string name="mission_magnetic_desc">Face the wall and sidestep along it twice (chest and knee height). Measured every 25 cm; cables, pipes and rebar in the wall show up in the magnetic layer.</string>
+    <string name="mission_radar">Sound radar</string>
+    <string name="mission_radar_desc">Turn slowly on the spot; short sound pulses are sent in each direction and the echoes give the distance to surfaces around you. The result is a radar view and a free-space map.</string>
     <string name="mission_room">Room map</string>
     <string name="mission_room_desc">Turn around once, then walk to the four corners of the room one by one and pause. Corners are marked; the scan, walls and corner values form the room plan together.</string>
     <string name="mission_sound">Room sound</string>
@@ -353,6 +362,7 @@ NexSense is an exploration and logging tool, not a professional instrument.
     <string name="pdf_col_values">Values</string>
     <string name="pdf_demo_warning">This project contains DEMO DATA: values are made up, not real measurements.</string>
     <string name="pdf_estimate_caption">Faint hatched cells are IDW estimates (cells: %1$d, max distance %2$s m); they are not measurements.</string>
+    <string name="pdf_freemap_caption">Blue: free, dark: occupied, white: unknown; strength = confidence. Thin lines are acoustic radar rays (low confidence, as the phone speaker is not directional). Free ≈ %1$s m², occupied ≈ %2$s m², unexplored frontiers: %3$d, radar rays: %4$d. 10 cm cells; phone-height band.</string>
     <string name="pdf_generated">Generated: %1$s</string>
     <string name="pdf_methods">Sensor values are stored in the units the device reports, unconverted; phone sensors are not calibrated. Position: manual, ARCore visual-inertial tracking (arcore, ~cm) or step counting (pdr, rough estimate). Vibration: linear-acceleration RMS. Sound: dBFS; approximate dB SPL if an offset is set. Reverberation: exponential sweep, Schroeder T20 → RT60. Echo distance: matched-filter sonar. Anomaly: robust z > 3.5. Relation: Pearson r. Unmeasured places are never shown as measured.</string>
     <string name="pdf_methods_idw">Interpolation method: %1$s</string>
@@ -362,6 +372,7 @@ NexSense is an exploration and logging tool, not a professional instrument.
     <string name="pdf_plan_caption">Top-down plan (1 m grid). Measured range %1$s – %2$s %3$s. Blue line: walking path; teal: detected planes; grey: point cloud.</string>
     <string name="pdf_room">Approximate room size</string>
     <string name="pdf_scans">Scans (points / planes / path)</string>
+    <string name="pdf_section_freemap">Free-space map</string>
     <string name="pdf_section_layers">Layer summary</string>
     <string name="pdf_section_methods">Methods and limits</string>
     <string name="pdf_section_points">Measurement points</string>
@@ -427,6 +438,7 @@ NexSense is an exploration and logging tool, not a professional instrument.
     <string name="scan_delete">Delete scan</string>
     <string name="scan_delete_confirm">This scan\'s point cloud, planes and path will be deleted. Measurement points are kept.</string>
     <string name="scan_pdr">Step path (estimate)</string>
+    <string name="scan_radar">Acoustic radar</string>
     <string name="session_end">End session</string>
     <string name="session_hint">A session opens automatically with the first point.</string>
     <string name="session_n">Session %1$d</string>
@@ -459,6 +471,8 @@ NexSense is an exploration and logging tool, not a professional instrument.
     <string name="space_estimate">Estimate (IDW)</string>
     <string name="space_estimate_badge">ESTIMATE: hatched cells are not measurements (cells: %1$d)</string>
     <string name="space_fit">Fit view</string>
+    <string name="space_freemap">Free-space map</string>
+    <string name="space_freemap_caption">Top view. Blue: free (walked path, where sound passed), dark: occupied (camera point or echo), white: unknown. Colour strength shows confidence. Free ≈ %1$s m², occupied ≈ %2$s m², unexplored frontiers: %3$d. No walls or corners are assumed.</string>
     <string name="space_scene_description">3D scene; measurement points: %1$d. Drag to rotate, pinch to zoom, tap to select.</string>
     <string name="st_dominant">Dominant frequency</string>
     <string name="st_echo">Echo distance</string>
@@ -472,10 +486,12 @@ NexSense is an exploration and logging tool, not a professional instrument.
     <string name="step_corner4">Walk to the fourth corner and pause</string>
     <string name="step_figure8">Slowly draw an 8 in the air</string>
     <string name="step_forward">Walk slowly 2 metres forward</string>
+    <string name="step_frontier">Walk to the unknown edge of the map</string>
     <string name="step_high">Raise the phone above your head</string>
     <string name="step_low">Lower the phone to knee height</string>
     <string name="step_mid">Bring the phone to chest height</string>
     <string name="step_place">Put the phone on a table, hands off</string>
+    <string name="step_radar">Turn slowly, pause briefly in each direction</string>
     <string name="step_return">Go back to where you started</string>
     <string name="step_still">Hold the phone still</string>
     <string name="step_turn">Slowly turn around once on the spot</string>
@@ -529,8 +545,10 @@ NexSense is an exploration and logging tool, not a professional instrument.
     <string name="why_corner">Corners are the skeleton of a room: with four corners known, the plan\'s outline and size appear. Pause in a corner for a few seconds and the spot is marked.</string>
     <string name="why_figure8">Earth\'s magnetic field here is about 45–50 µT and tilts into the ground (~55° in Türkiye). Magnets inside the phone offset the reading; drawing an 8 lets the magnetometer see every direction and correct itself, making the compass and magnetic layer more reliable.</string>
     <string name="why_forward">While you walk, a measurement is taken every half metre, creating a \"slice\" across the room. Walking slowly keeps the position tracking accurate.</string>
+    <string name="why_frontier">The map has three kinds of cell: free (where you walked or sound reached), occupied (echo or camera points) and unknown. Where free meets unknown is called a \"frontier\"; exploration robots work the same way: go to the largest, nearest frontier and listen again there. No shape is assumed; the same rule works in a cave, a corridor or open ground. Your safety comes first: if the spot is impassable or dangerous, skip the step.</string>
     <string name="why_height">Measuring the same spot at different heights reveals the vertical structure of the space: warm air gathers higher up, cables run at particular heights in walls. When you hold the phone at the right height for a moment, the measurement is taken automatically.</string>
     <string name="why_place">With the phone still, the speaker plays short sounds and the microphone listens for echoes. Sound travels ~343 metres per second; distance to surfaces comes from the echo delay and the room\'s reverberation from how fast it fades. Audio is not recorded.</string>
+    <string name="why_radar">Sound travels about 343 metres per second in air. The phone plays short pulses and the microphone listens for the echo; the delay gives the distance to a surface. Measuring in every direction yields a polar profile of the surroundings, useful even where there are no walls or corners. Honest note: the phone speaker is not directional, so an echo may come from the nearest large surface rather than the direction you face; radar rings are therefore stored with low confidence. Audio is not recorded.</string>
     <string name="why_return">Coming back to the start shows how much position error has built up along the way: the gap between where the phone thinks you started and where you actually did is an honest indicator of quality.</string>
     <string name="why_still">Even at rest the sensors produce a little \"noise\"; Earth\'s gravity always shows as ~9.8 m/s² on the accelerometer. I learn these baselines first so later changes can be told apart from real movement.</string>
     <string name="why_turn">While turning, the camera sees every direction of the room (point cloud and walls) and the magnetometer measures the same spot in different orientations. A measurement is taken every quarter turn.</string>

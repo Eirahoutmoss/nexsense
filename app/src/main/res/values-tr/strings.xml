@@ -202,6 +202,8 @@ NexSense bir keşif ve kayıt aracıdır; profesyonel ölçüm cihazı değildir
     <string name="guide_honesty">Kalite, adımların kaçının sensörlerle doğrulandığına ve konumun kaç kez kaybolduğuna göre hesaplanır; bir not ya da sınav değildir.</string>
     <string name="guide_intro">Kısa görevler seç. Ekranda (ve istersen sesli) tek bir yönerge görürsün: kaldır, indir, yürü, dön, bırak. Telefon hareketini sensörlerle denetler, gerekirse düzeltir (\"biraz daha kaldır\", \"yavaşla\") ve doğru anda ölçümü kendisi kaydeder. Koordinat ya da ayar düşünmen gerekmez.</string>
     <string name="guide_manual_note">Bu adım elle onaylanır; kaydedilen konum ölçülmediği için \"tahmini\" işaretlenir.</string>
+    <string name="guide_map_done">Keşfedilecek sınır kalmadı</string>
+    <string name="guide_map_status">Boş alan ≈ %1$s m² · sınır: %2$d</string>
     <string name="guide_method_ar">Konum: ARCore (kamera + hareket) — hassas</string>
     <string name="guide_method_pdr">Konum: adım sayımı + pusula — kaba tahmin</string>
     <string name="guide_minutes">≈ %1$d dk · %2$d adım</string>
@@ -215,12 +217,15 @@ NexSense bir keşif ve kayıt aracıdır; profesyonel ölçüm cihazı değildir
     <string name="guide_quality_fair">Ölçüm kalitesi: orta</string>
     <string name="guide_quality_good">Ölçüm kalitesi: iyi</string>
     <string name="guide_quality_poor">Ölçüm kalitesi: zayıf</string>
+    <string name="guide_radar_honesty">Halkalar tahmindir: telefon hoparlörü yönlü değildir.</string>
+    <string name="guide_radar_status">Radar: %1$d / %2$d yön</string>
     <string name="guide_see_space">Mekân\'da gör</string>
     <string name="guide_skip">Atla</string>
     <string name="guide_step_of">Adım %1$d / %2$d · kaydedilen: %3$d</string>
     <string name="guide_stop">Bitir</string>
     <string name="guide_summary_counts">Otomatik: %1$d · onaylanan: %2$d · atlanan: %3$d · kaydedilen nokta: %4$d</string>
     <string name="guide_summary_losses">Konum kaybı: %1$d</string>
+    <string name="guide_summary_map">Boşluk haritası: ≈ %1$s m² boş alan, %2$d radar ışını.</string>
     <string name="guide_summary_title">%1$s tamamlandı</string>
     <string name="guide_tip_fair">Bazı adımlar onayla ya da atlanarak geçti. Daha iyi ışıkta, daha yavaş hareketle tekrar denersen otomatik ölçüm oranı artar.</string>
     <string name="guide_tip_good">Veriler Mekân ekranında. Aynı görevi başka bir gün tekrarlarsan Analiz ekranı aynı yerlerdeki değişimi gösterir.</string>
@@ -298,10 +303,14 @@ NexSense bir keşif ve kayıt aracıdır; profesyonel ölçüm cihazı değildir
     <string name="mic_permission_why">Ses seviyesini ölçmek için mikrofon izni gerekir. Ses kaydedilmez; yalnızca seviye cihazda hesaplanır.</string>
     <string name="mic_start">Ses seviyesini başlat</string>
     <string name="mic_stop">Durdur</string>
+    <string name="mission_explore">Serbest keşif</string>
+    <string name="mission_explore_desc">Köşe, duvar ya da oda şekli varsaymaz: mağara, koridor, enkaz çevresi, açık alan… Ses radarıyla çevreyi dinler, haritadaki bilinen ile bilinmeyenin sınırını bulur ve seni oraya yönlendirir. Keşfedilecek sınır kalmayınca kendiliğinden biter.</string>
     <string name="mission_first">İlk keşif</string>
     <string name="mission_first_desc">Telefonunu tanı: dinlenme, pusula kalibrasyonu, üç yükseklik, bir tur dönüş, 2 m yürüyüş ve dönüş. Odanın ilk dikey ve yatay kesitini çıkarır.</string>
     <string name="mission_magnetic">Duvar manyetik izi</string>
     <string name="mission_magnetic_desc">Duvara bakarak yana doğru iki kez yürü (göğüs ve diz hizasında). Her 25 cm\'de ölçülür; duvardaki kablo, boru ve demir izleri manyetik katmanda belirir.</string>
+    <string name="mission_radar">Ses radarı</string>
+    <string name="mission_radar_desc">Olduğun yerde yavaşça dön; her yönde kısa ses darbeleri gönderilir, yankılardan çevrendeki yüzeylere uzaklık bulunur. Sonuç radar ekranı ve boşluk haritasıdır.</string>
     <string name="mission_room">Oda haritası</string>
     <string name="mission_room_desc">Bir tur dön, sonra odanın dört köşesine sırayla git ve dur. Köşeler işaretlenir; tarama, duvarlar ve köşelerdeki değerler birlikte oda planını oluşturur.</string>
     <string name="mission_sound">Oda sesi</string>
@@ -352,6 +361,7 @@ NexSense bir keşif ve kayıt aracıdır; profesyonel ölçüm cihazı değildir
     <string name="pdf_col_values">Değerler</string>
     <string name="pdf_demo_warning">Bu proje DEMO VERİSİ içerir: değerler uydurmadır, gerçek ölçüm değildir.</string>
     <string name="pdf_estimate_caption">Soluk, taralı hücreler IDW tahminidir (hücre: %1$d, en fazla %2$s m uzaklık); ölçüm değildir.</string>
+    <string name="pdf_freemap_caption">Mavi: boş, koyu: dolu, beyaz: bilinmeyen; yoğunluk = güven. İnce çizgiler akustik radar ışınlarıdır (telefon hoparlörü yönlü olmadığından düşük güvenle). Boş ≈ %1$s m², dolu ≈ %2$s m², keşfedilmemiş sınır: %3$d, radar ışını: %4$d. 10 cm hücre; telefon yüksekliği bandı.</string>
     <string name="pdf_generated">Oluşturma: %1$s</string>
     <string name="pdf_methods">Sensör değerleri cihazın bildirdiği birimlerle, dönüştürülmeden kaydedilir; telefon sensörleri kalibre değildir. Konum: elle (manual), ARCore görsel-ataletsel izleme (arcore, ~cm) ya da adım sayımı (pdr, kaba tahmin). Titreşim: doğrusal ivme RMS. Ses: dBFS; ofset girilmişse yaklaşık dB SPL. Yankı süresi: üstel tarama, Schroeder T20 → RT60. Yankı mesafesi: eşleşik süzgeçli sonar. Anomali: sağlam z > 3,5. İlişki: Pearson r. Ölçülmeyen yer ölçülmüş gibi gösterilmez.</string>
     <string name="pdf_methods_idw">Ara değer yöntemi: %1$s</string>
@@ -361,6 +371,7 @@ NexSense bir keşif ve kayıt aracıdır; profesyonel ölçüm cihazı değildir
     <string name="pdf_plan_caption">Kuşbakışı plan (1 m ızgara). Ölçülen aralık %1$s – %2$s %3$s. Mavi çizgi: yürüme yolu; turkuaz: algılanan düzlemler; gri: nokta bulutu.</string>
     <string name="pdf_room">Yaklaşık oda boyutu</string>
     <string name="pdf_scans">Taramalar (nokta / düzlem / yol)</string>
+    <string name="pdf_section_freemap">Boşluk haritası</string>
     <string name="pdf_section_layers">Katman özeti</string>
     <string name="pdf_section_methods">Yöntemler ve sınırlar</string>
     <string name="pdf_section_points">Ölçüm noktaları</string>
@@ -426,6 +437,7 @@ NexSense bir keşif ve kayıt aracıdır; profesyonel ölçüm cihazı değildir
     <string name="scan_delete">Taramayı sil</string>
     <string name="scan_delete_confirm">Bu taramanın nokta bulutu, düzlemleri ve izi silinecek. Ölçüm noktaları silinmez.</string>
     <string name="scan_pdr">Adım izi (tahmini)</string>
+    <string name="scan_radar">Akustik radar</string>
     <string name="session_end">Oturumu bitir</string>
     <string name="session_hint">İlk ölçüm noktası eklenince oturum kendiliğinden açılır.</string>
     <string name="session_n">Oturum %1$d</string>
@@ -458,6 +470,8 @@ NexSense bir keşif ve kayıt aracıdır; profesyonel ölçüm cihazı değildir
     <string name="space_estimate">Tahmin (IDW)</string>
     <string name="space_estimate_badge">TAHMİN: taralı hücre ölçüm değildir (hücre: %1$d)</string>
     <string name="space_fit">Görünümü sığdır</string>
+    <string name="space_freemap">Boşluk haritası</string>
+    <string name="space_freemap_caption">Kuşbakışı. Mavi: boş (yürünen yol, sesin geçtiği yer), koyu: dolu (kamera noktası ya da yankı), beyaz: bilinmeyen. Renk yoğunluğu güveni gösterir. Boş ≈ %1$s m², dolu ≈ %2$s m², keşfedilmemiş sınır: %3$d. Duvar ya da köşe varsayılmaz.</string>
     <string name="space_scene_description">%1$d ölçüm noktası içeren 3B sahne. Döndürmek için sürükle, yakınlaştırmak için iki parmakla kıstır, seçmek için dokun.</string>
     <string name="st_dominant">Baskın frekans</string>
     <string name="st_echo">Yankı mesafesi</string>
@@ -471,10 +485,12 @@ NexSense bir keşif ve kayıt aracıdır; profesyonel ölçüm cihazı değildir
     <string name="step_corner4">Dördüncü köşeye git ve dur</string>
     <string name="step_figure8">Havada yavaşça 8 çiz</string>
     <string name="step_forward">Yavaşça 2 metre ileri yürü</string>
+    <string name="step_frontier">Haritanın bilinmeyen kenarına yürü</string>
     <string name="step_high">Telefonu başının üstüne kaldır</string>
     <string name="step_low">Telefonu diz hizasına indir</string>
     <string name="step_mid">Telefonu göğüs hizasına getir</string>
     <string name="step_place">Telefonu masaya bırak, dokunma</string>
+    <string name="step_radar">Yavaşça dön, her yönde bir an dur</string>
     <string name="step_return">Başladığın yere dön</string>
     <string name="step_still">Telefonu kıpırdatmadan tut</string>
     <string name="step_turn">Olduğun yerde yavaşça bir tur dön</string>
@@ -528,8 +544,10 @@ NexSense bir keşif ve kayıt aracıdır; profesyonel ölçüm cihazı değildir
     <string name="why_corner">Köşeler odanın iskeletidir: dört köşe bilinince planın sınırları ve boyutları ortaya çıkar. Köşede birkaç saniye durduğunda yer işaretlenir.</string>
     <string name="why_figure8">Dünya\'nın manyetik alanı burada yaklaşık 45–50 µT ve yere doğru eğik (Türkiye\'de ~55°). Telefonun içindeki mıknatıslar bu ölçümü kaydırır; 8 çizdiğinde manyetometre her yönü görür ve kendini düzeltir. Bu yüzden pusula ve manyetik katman daha güvenilir olur.</string>
     <string name="why_forward">Yürürken her yarım metrede ölçüm alınır; böylece odanın içinden geçen bir \"kesit\" çıkar. Yavaş yürümek konumun doğru izlenmesini sağlar.</string>
+    <string name="why_frontier">Harita üç tür hücreden oluşur: boş (geçtiğin ya da sesin ulaştığı yer), dolu (yankı ya da kamera noktası) ve bilinmeyen. Boş ile bilinmeyenin buluştuğu yere \"sınır\" denir; keşif robotları da böyle çalışır: en büyük ve en yakın sınıra gider, orada yeniden dinler. Şekil varsaymaz; mağarada, koridorda, açık alanda aynı kural geçerlidir. Güvenliğin önce gelir: geçilemeyecek ya da tehlikeli bir yerse adımı atla.</string>
     <string name="why_height">Aynı yerde farklı yüksekliklerde ölçmek mekânın dikey yapısını gösterir: sıcak hava yukarıda toplanır, kablolar duvarın belli yüksekliklerinden geçer. Telefon doğru yükseklikte bir an durduğunda ölçüm kendiliğinden alınır.</string>
     <string name="why_place">Telefon sabitken hoparlör kısa sesler çalar, mikrofon yankıları dinler. Ses saniyede ~343 metre yol alır; yankının dönüş süresinden yüzeylere uzaklık, sönme hızından odanın yankı süresi hesaplanır. Ses kaydedilmez.</string>
+    <string name="why_radar">Ses havada saniyede ~343 metre yol alır. Telefon kısa darbeler çalar, mikrofon yankıyı dinler; gecikme yüzeye uzaklığı verir. Her yönde ölçüm alınca çevrenin kutupsal bir profili çıkar; duvarı, köşesi olmayan yerlerde de işe yarar. Dürüst not: telefon hoparlörü yönlü değildir, yankı baktığın yönden değil en yakın büyük yüzeyden gelebilir; bu yüzden radar halkaları düşük güvenle işlenir. Ses kaydedilmez.</string>
     <string name="why_return">Başlangıca dönmek, yol boyunca konum hatasının ne kadar biriktiğini gösterir: döndüğünde telefonun \"başladım\" dediği yerle gerçek başlangıç arasındaki fark, ölçüm kalitesi hakkında dürüst bir göstergedir.</string>
     <string name="why_still">Telefon dururken bile sensörler biraz \"gürültü\" üretir; Dünya\'nın çekimi ivmeölçerde hep ~9,8 m/s² görünür. Önce bu taban değerleri öğreniyorum ki sonraki değişimleri gerçek hareketten ayırabileyim.</string>
     <string name="why_turn">Dönerken kamera odanın her yönünü görür (nokta bulutu ve duvarlar), manyetometre de aynı noktada farklı yönleri ölçer. Her çeyrek turda bir ölçüm alınır.</string>

@@ -2,6 +2,7 @@ package com.eirahoutmoss.nexsense.ui.screens
 
 import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
 import android.opengl.GLSurfaceView
 import android.os.Handler
 import android.os.Looper
@@ -70,6 +71,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -100,6 +102,7 @@ import com.eirahoutmoss.nexsense.ar.ArSessionGate
 import com.eirahoutmoss.nexsense.ar.ArStatus
 import com.eirahoutmoss.nexsense.ar.arSupported
 import com.eirahoutmoss.nexsense.ar.displayRotationOf
+import com.eirahoutmoss.nexsense.core.acoustic.Sonar
 import com.eirahoutmoss.nexsense.core.analysis.RoomEstimator
 import com.eirahoutmoss.nexsense.core.guide.Capture
 import com.eirahoutmoss.nexsense.core.guide.CaptureKind
@@ -119,17 +122,27 @@ import com.eirahoutmoss.nexsense.core.model.ProjectBundle
 import com.eirahoutmoss.nexsense.core.model.Scan
 import com.eirahoutmoss.nexsense.core.model.ScanAlignment
 import com.eirahoutmoss.nexsense.core.model.ScanMethod
+import com.eirahoutmoss.nexsense.core.model.ScanRay
 import com.eirahoutmoss.nexsense.core.scene.Vec3
 import com.eirahoutmoss.nexsense.core.sensors.Channel
 import com.eirahoutmoss.nexsense.core.sensors.Reading
+import com.eirahoutmoss.nexsense.core.spatial.CellState
+import com.eirahoutmoss.nexsense.core.spatial.Frontiers
+import com.eirahoutmoss.nexsense.core.spatial.OccupancyGrid
 import com.eirahoutmoss.nexsense.core.spatial.PdrTracker
+import com.eirahoutmoss.nexsense.core.spatial.RadarReading
+import com.eirahoutmoss.nexsense.core.spatial.RadarSweep
 import com.eirahoutmoss.nexsense.core.spatial.PeakStepDetector
 import com.eirahoutmoss.nexsense.data.AcousticLab
 import com.eirahoutmoss.nexsense.sensors.AcousticIo
 import com.eirahoutmoss.nexsense.ui.components.SectionCard
+import com.eirahoutmoss.nexsense.ui.scene.MapSnapshot
+import com.eirahoutmoss.nexsense.ui.scene.SpaceMap
 import com.eirahoutmoss.nexsense.ui.theme.NexColors
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.util.Locale
 import kotlin.math.cos
@@ -141,6 +154,8 @@ fun missionTitle(id: String): Int = when (id) {
     "first" -> R.string.mission_first
     "room" -> R.string.mission_room
     "magnetic" -> R.string.mission_magnetic
+    "explore" -> R.string.mission_explore
+    "radar" -> R.string.mission_radar
     else -> R.string.mission_sound
 }
 
@@ -148,10 +163,18 @@ fun missionDesc(id: String): Int = when (id) {
     "first" -> R.string.mission_first_desc
     "room" -> R.string.mission_room_desc
     "magnetic" -> R.string.mission_magnetic_desc
+    "explore" -> R.string.mission_explore_desc
+    "radar" -> R.string.mission_radar_desc
     else -> R.string.mission_sound_desc
 }
 
-fun stepTitle(step: GuideStep): Int = when (step.id) {
+fun stepTitle(step: GuideStep): Int = when (step) {
+    is GuideStep.RadarSweep -> R.string.step_radar
+    is GuideStep.Frontier -> R.string.step_frontier
+    else -> stepTitleById(step.id)
+}
+
+private fun stepTitleById(id: String): Int = when (id) {
     "still" -> R.string.step_still
     "figure8" -> R.string.step_figure8
     "low" -> R.string.step_low
@@ -178,6 +201,8 @@ fun stepWhy(step: GuideStep): Int = when (step) {
     is GuideStep.Turn -> R.string.why_turn
     is GuideStep.Mark -> R.string.why_corner
     is GuideStep.PlaceFlat -> R.string.why_place
+    is GuideStep.RadarSweep -> R.string.why_radar
+    is GuideStep.Frontier -> R.string.why_frontier
 }
 
 fun hintText(h: Hint): Int = when (h) {
@@ -241,17 +266,18 @@ fun GuidedScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, on
     var useAr by remember { mutableStateOf<Boolean?>(null) }
     var voice by remember { mutableStateOf(true) }
     var summary by remember { mutableStateOf<MissionSummary?>(null) }
+    var mapInfo by remember { mutableStateOf<MapInfo?>(null) }
     LaunchedEffect(Unit) { useAr = runCatching { arSupported(context) }.getOrDefault(false) }
 
     val m = mission
     val sum = summary
     when {
-        sum != null && m != null -> SummaryView(m, sum, modifier, onAgain = { summary = null; mission = null }, onDone = onDone)
+        sum != null && m != null -> SummaryView(m, sum, mapInfo, modifier, onAgain = { summary = null; mission = null; mapInfo = null }, onDone = onDone)
         m == null -> MissionPicker(c, useAr, voice, onVoice = { voice = it }, modifier) { mission = it }
         useAr == true -> ArSessionGate(modifier, onFallback = { useAr = false }, onClose = { mission = null }) { session ->
-            GuidedRun(c, bundle, m, session, voice, onVoice = { voice = it }, modifier) { summary = it }
+            GuidedRun(c, bundle, m, session, voice, onVoice = { voice = it }, modifier) { s, info -> mapInfo = info; summary = s }
         }
-        useAr == false -> GuidedRun(c, bundle, m, null, voice, onVoice = { voice = it }, modifier) { summary = it }
+        useAr == false -> GuidedRun(c, bundle, m, null, voice, onVoice = { voice = it }, modifier) { s, info -> mapInfo = info; summary = s }
         else -> Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(stringResource(R.string.auto_ar_checking)) }
     }
 }
@@ -307,12 +333,18 @@ private fun MissionPicker(
     }
 }
 
-/** Konum kaynağının paylaşılan son durumu (AR ya da adım). */
+/** Konum kaynağının paylaşılan son durumu (AR ya da adım) ve harita sınırı. */
 private class PositionState {
     @Volatile var position: Vec3? = null
     @Volatile var tracking = false
     @Volatile var arStatus: ArStatus? = ArStatus.SEARCHING
+    @Volatile var facing: Vec3? = null
+    @Volatile var frontier: Vec3? = null
+    @Volatile var frontierExhausted = false
 }
+
+/** Görev sonunda boşluk haritasının özeti. */
+class MapInfo(val freeAreaM2: Double, val rays: Int)
 
 private fun liveReadingsOf(c: AppContainer): Map<Channel, Reading> {
     val m = c.sensorHub.readings.value.filterValues { r -> r.values.values.any { it != null } }.toMutableMap()
@@ -329,7 +361,7 @@ private fun GuidedRun(
     voice: Boolean,
     onVoice: (Boolean) -> Unit,
     modifier: Modifier,
-    onFinished: (MissionSummary) -> Unit,
+    onFinished: (MissionSummary, MapInfo?) -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -340,13 +372,17 @@ private fun GuidedRun(
     val pos = remember { PositionState() }
     val main = remember { Handler(Looper.getMainLooper()) }
     val alignment = remember { ScanAlignment(offsetZ = settings.pdrHoldHeightM, note = "start=reference (guided)") }
+    val latestBundle by rememberUpdatedState(bundle)
+    val usesMap = mission.steps.any { it is GuideStep.RadarSweep || it is GuideStep.Frontier }
 
     // Kullanılabilir veri: motor gerekli sensör olmayan adımları dürüstçe "elle onay"a düşürür.
     val hasAccel = hub.hasHardware(Channel.ACCELEROMETER)
     val hasCompass = hasAccel && hub.hasHardware(Channel.MAGNETOMETER)
     val hasBaro = hub.hasHardware(Channel.PRESSURE)
+    val hasMic = remember { context.packageManager.hasSystemFeature(PackageManager.FEATURE_MICROPHONE) }
     val available = remember {
         buildSet {
+            if (hasMic) add(Need.ACOUSTIC)
             if (hasAccel) add(Need.MOTION)
             if (hasCompass) add(Need.ORIENTATION)
             if (session != null || hasBaro) add(Need.HEIGHT)
@@ -359,6 +395,11 @@ private fun GuidedRun(
     var showWhy by remember { mutableStateOf(true) }
     var acousticBusy by remember { mutableStateOf(false) }
     var acousticProgress by remember { mutableStateOf(0f) }
+    var pingBusy by remember { mutableStateOf(false) }
+    val radarRays = remember { mutableStateListOf<ScanRay>() }
+    val echoDots = remember { mutableStateListOf<Vec3>() }
+    var map by remember { mutableStateOf<MapSnapshot?>(null) }
+    var yawNow by remember { mutableStateOf<Double?>(null) }
     var finishing by remember { mutableStateOf(false) }
     val path = remember { mutableStateListOf<Vec3>() }
     val marks = remember { mutableStateListOf<Vec3>() }
@@ -382,7 +423,8 @@ private fun GuidedRun(
     // Mikrofon izni (ses görevi için baştan istenir)
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> c.settings.setMicDenied(!ok) }
     LaunchedEffect(Unit) {
-        if (mission.steps.any { it is GuideStep.PlaceFlat } && !c.micMeter.hasPermission()) micPermission.launch(Manifest.permission.RECORD_AUDIO)
+        val needsMic = mission.steps.any { it is GuideStep.PlaceFlat || it is GuideStep.RadarSweep }
+        if (needsMic && !c.micMeter.hasPermission()) micPermission.launch(Manifest.permission.RECORD_AUDIO)
         c.actions.startSessionNow(projectId, "guided:${mission.id}")
     }
 
@@ -485,6 +527,7 @@ private fun GuidedRun(
                 heightM = if (pos.tracking) p?.z else null,
                 pitchDeg = o?.pitchDeg, rollDeg = o?.rollDeg, azimuthDeg = o?.azimuthDeg,
                 accelMagnitude = acc, magAccuracy = magAcc,
+                frontier = pos.frontier, frontierExhausted = pos.frontierExhausted,
             )
         } else {
             val h = baroHeight()
@@ -500,7 +543,39 @@ private fun GuidedRun(
                 tS = tS, tracking = t != null, position = p, facing = facing, heightM = h,
                 pitchDeg = o?.pitchDeg, rollDeg = o?.rollDeg, azimuthDeg = o?.azimuthDeg,
                 accelMagnitude = acc, magAccuracy = magAcc,
+                frontier = pos.frontier, frontierExhausted = pos.frontierExhausted,
             )
+        }
+    }
+
+    /** Radar dilimi: tek yönde sonar. Ses kaydedilmez; yalnızca yankı uzaklıkları tutulur. */
+    fun ping(cap: Capture) {
+        val yaw = cap.yawDeg ?: return
+        if (!c.micMeter.hasPermission()) {
+            // Mikrofon izni yok: radar adımı dürüstçe atlanır, sahte okuma üretilmez.
+            engine.skip()
+            return
+        }
+        pingBusy = true
+        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        scope.launch {
+            val reading = try {
+                val e = lab.echo(hub.readings.value[Channel.AMBIENT_TEMPERATURE]?.values?.get("value")) { }
+                val ranges = e.echoes.map { it.distanceM }.filter { it > 0.15 && it <= AcousticLab.MAX_ECHO_M }.sorted()
+                // Yankı yoksa: ölçüm yapıldı ama menzilde yüzey duyulmadı (zayıf boşluk kanıtı).
+                val conf = if (e.echoes.isEmpty()) 0.3 else Sonar.confidence01(e.echoes.maxOf { it.confidence }).coerceIn(0.05, 1.0)
+                RadarReading(yaw, ranges, conf)
+            } catch (e: Exception) {
+                null
+            }
+            pingBusy = false
+            engine.completePing(yaw, reading)
+            val o = cap.position
+            if (reading != null && o != null) {
+                RadarSweep.rayFor(o, reading)?.let { radarRays += it }
+                val a = Math.toRadians(yaw)
+                for (d in reading.ranges) echoDots += Vec3(o.x + d * cos(a), o.y + d * sin(a), o.z)
+            }
         }
     }
 
@@ -511,6 +586,10 @@ private fun GuidedRun(
     }
 
     fun handle(cap: Capture) {
+        if (cap.kind == CaptureKind.ACOUSTIC_PING) {
+            ping(cap)
+            return
+        }
         captured++
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         renderer?.markCurrent()
@@ -534,6 +613,7 @@ private fun GuidedRun(
                 val drafts = c.actions.draftsFrom(liveReadingsOf(c), hub.orientation.value)
                 scope.launch { c.actions.addPointNow(projectId, labelFor(cap), notes, p?.x, p?.y, p?.z, drafts, src, conf) }
             }
+            CaptureKind.ACOUSTIC_PING -> Unit
             CaptureKind.ACOUSTIC_SUITE -> {
                 acousticBusy = true
                 scope.launch {
@@ -579,8 +659,48 @@ private fun GuidedRun(
                     )
                 }
             }
+            if (radarRays.isNotEmpty()) {
+                c.actions.addScanNow(
+                    projectId,
+                    Scan(
+                        id = "", projectId = projectId, method = ScanMethod.ACOUSTIC_RADAR,
+                        startedAt = Instant.ofEpochMilli(t0).toString(), endedAt = Instant.now().toString(),
+                        rays = radarRays.toList(), alignment = alignment,
+                        notes = "guided:${mission.id}; position=" + if (session != null) "arcore" else "pdr (estimated)",
+                    ),
+                )
+            }
             c.actions.endSessionNow(projectId)
-            onFinished(engine.summary())
+            val info = if (usesMap) MapInfo(map?.freeArea ?: 0.0, radarRays.size) else null
+            onFinished(engine.summary(), info)
+        }
+    }
+
+    // Boşluk haritası + sınır (2 sn'de bir, arka planda)
+    if (usesMap) {
+        LaunchedEffect(engine) {
+            while (!finishing) {
+                val r = renderer
+                val res = r?.result()
+                val track = res?.track?.map { Vec3(it.x, it.y, it.z) } ?: path.toList()
+                val pts = res?.points?.map { Vec3(it.x, it.y, it.z) }.orEmpty()
+                val rays = radarRays.toList()
+                val b = latestBundle
+                val p = pos.position
+                val facing = pos.facing
+                val snap = withContext(Dispatchers.Default) {
+                    val g = OccupancyGrid.build(b, extraRays = rays, extraTrack = track + listOfNotNull(p), extraPoints = pts)
+                    val fr = Frontiers.find(g)
+                    val chosen = p?.let { Frontiers.choose(fr, it, facing) ?: Frontiers.choose(fr, it, facing, minDist = 0.0) }
+                    val freeCells = g.count(CellState.FREE)
+                    // Yeterince alan biliniyor ve sınır yok → keşif tamam.
+                    pos.frontierExhausted = fr.isEmpty() && freeCells >= 30
+                    pos.frontier = chosen?.nearest
+                    MapSnapshot.of(g, fr.size)
+                }
+                map = snap
+                delay(2000)
+            }
         }
     }
 
@@ -590,7 +710,10 @@ private fun GuidedRun(
     var lastStep by remember { mutableIntStateOf(-1) }
     LaunchedEffect(engine) {
         while (!finishing) {
-            val f = engine.update(signals((System.currentTimeMillis() - t0) / 1000.0))
+            val sig = signals((System.currentTimeMillis() - t0) / 1000.0)
+            pos.facing = sig.facing
+            yawNow = sig.facing?.let { Math.toDegrees(kotlin.math.atan2(it.y, it.x)) } ?: sig.azimuthDeg?.let { 90.0 - it }
+            val f = engine.update(sig)
             frame = f
             f.captures.forEach { handle(it) }
             if (f.finished) { finish(); break }
@@ -617,8 +740,20 @@ private fun GuidedRun(
     Column(modifier.fillMaxSize()) {
         Box(Modifier.fillMaxWidth().weight(0.42f).background(Color(0xFF0B1424))) {
             val gv = glView
+            val sweep = if (step is GuideStep.RadarSweep) engine.radarSweep else null
+            val snap = map
             if (session != null && gv != null) {
                 AndroidView(factory = { gv }, modifier = Modifier.fillMaxSize())
+                // AR görüntüsünün köşesinde radar ya da harita
+                if (sweep != null) {
+                    RadarView(sweep, yawNow, Modifier.align(Alignment.BottomEnd).padding(8.dp).size(150.dp).background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(12.dp)))
+                } else if (usesMap && snap != null) {
+                    SpaceMap(snap, path.toList(), pos.position, pos.frontier, echoDots, Modifier.align(Alignment.BottomEnd).padding(8.dp).size(150.dp).background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(12.dp)))
+                }
+            } else if (sweep != null) {
+                RadarView(sweep, yawNow, Modifier.fillMaxSize().padding(12.dp))
+            } else if (usesMap && snap != null) {
+                SpaceMap(snap, path.toList(), pos.position, pos.frontier, echoDots, Modifier.fillMaxSize().padding(12.dp))
             } else {
                 MiniMap(path, marks, Modifier.fillMaxSize().padding(12.dp))
             }
@@ -643,7 +778,21 @@ private fun GuidedRun(
                 style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(stringResource(stepTitle(step)), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-            HintBanner(if (acousticBusy) Hint.WORKING else f?.hint)
+            HintBanner(if (acousticBusy || pingBusy) Hint.WORKING else f?.hint)
+            if (step is GuideStep.RadarSweep) {
+                val sw = engine.radarSweep
+                Text(stringResource(R.string.guide_radar_status, sw?.measured ?: 0, step.sectors), style = MaterialTheme.typography.labelMedium, color = NexColors.Cyan)
+                Text(stringResource(R.string.guide_radar_honesty), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (usesMap) {
+                map?.let { ms ->
+                    Text(
+                        if (pos.frontierExhausted) stringResource(R.string.guide_map_done)
+                        else stringResource(R.string.guide_map_status, String.format(Locale.getDefault(), "%.1f", ms.freeArea), ms.frontiers),
+                        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             LinearProgressIndicator(
                 progress = { if (acousticBusy) acousticProgress else (f?.progress ?: 0.0).toFloat() },
                 modifier = Modifier.fillMaxWidth().height(8.dp),
@@ -663,7 +812,7 @@ private fun GuidedRun(
                         Text(stringResource(R.string.guide_done_manual))
                     }
                 }
-                OutlinedButton(onClick = { engine.skip() }, enabled = !acousticBusy, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.guide_skip)) }
+                OutlinedButton(onClick = { engine.skip() }, enabled = !acousticBusy && !pingBusy, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.guide_skip)) }
                 OutlinedButton(onClick = { finish() }, enabled = !finishing, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.guide_stop)) }
             }
             if (f?.manual == true) {
@@ -709,8 +858,47 @@ private fun MiniMap(path: List<Vec3>, marks: List<Vec3>, modifier: Modifier) {
     }
 }
 
+/** Kutupsal radar görünümü: ölçülen dilimler, yankı halkaları, şu anki bakış. Kuzey değil, başlangıç çerçevesi. */
 @Composable
-private fun SummaryView(mission: Mission, s: MissionSummary, modifier: Modifier, onAgain: () -> Unit, onDone: () -> Unit) {
+private fun RadarView(sweep: RadarSweep, yawDeg: Double?, modifier: Modifier) {
+    Canvas(modifier) {
+        val cx = size.width / 2f
+        val cy = size.height / 2f
+        val rMax = minOf(cx, cy) * 0.92f
+        val sc = rMax / sweep.maxRangeM.toFloat()
+        // Mesafe halkaları (1 m)
+        for (m in 1..sweep.maxRangeM.toInt()) drawCircle(Color.White.copy(alpha = 0.12f), m * sc, Offset(cx, cy), style = Stroke(1.5f))
+        val step = 360f / sweep.sectors
+        for (k in 0 until sweep.sectors) {
+            val r = sweep.reading(k)
+            // Ekran: +x sağ, +y yukarı; açı saat yönünün tersine.
+            val start = -(sweep.sectorCenterDeg(k).toFloat() + step / 2f)
+            val color = when {
+                r == null -> Color.White.copy(alpha = 0.06f)
+                r.confidence <= 0.0 -> NexColors.Danger.copy(alpha = 0.25f)
+                r.ranges.isEmpty() -> NexColors.Blue.copy(alpha = 0.18f)
+                else -> NexColors.Cyan.copy(alpha = 0.22f)
+            }
+            val reach = (r?.ranges?.firstOrNull() ?: sweep.maxRangeM).toFloat() * sc
+            drawArc(color, start, step, useCenter = true, topLeft = Offset(cx - reach, cy - reach), size = androidx.compose.ui.geometry.Size(reach * 2, reach * 2))
+            if (r != null) {
+                val a = Math.toRadians(r.yawDeg)
+                for ((i, d) in r.ranges.withIndex()) {
+                    val pt = Offset(cx + (d * cos(a)).toFloat() * sc, cy - (d * sin(a)).toFloat() * sc)
+                    drawCircle(if (i == 0) NexColors.Cyan else NexColors.Cyan.copy(alpha = 0.5f), if (i == 0) 7f else 5f, pt)
+                }
+            }
+        }
+        yawDeg?.let { y ->
+            val a = Math.toRadians(y)
+            drawLine(NexColors.Demo, Offset(cx, cy), Offset(cx + (rMax * cos(a)).toFloat(), cy - (rMax * sin(a)).toFloat()), strokeWidth = 4f)
+        }
+        drawCircle(Color.White, 6f, Offset(cx, cy))
+    }
+}
+
+@Composable
+private fun SummaryView(mission: Mission, s: MissionSummary, mapInfo: MapInfo?, modifier: Modifier, onAgain: () -> Unit, onDone: () -> Unit) {
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -726,6 +914,9 @@ private fun SummaryView(mission: Mission, s: MissionSummary, modifier: Modifier,
         SectionCard(null) {
             Text(stringResource(R.string.guide_summary_counts, s.auto, s.manual, s.skipped, s.captures), style = MaterialTheme.typography.bodyMedium)
             if (s.trackingLosses > 0) Text(stringResource(R.string.guide_summary_losses, s.trackingLosses), style = MaterialTheme.typography.bodySmall)
+            if (mapInfo != null) {
+                Text(stringResource(R.string.guide_summary_map, String.format(Locale.getDefault(), "%.1f", mapInfo.freeAreaM2), mapInfo.rays), style = MaterialTheme.typography.bodySmall)
+            }
             for ((id, out) in s.outcomes) {
                 val step = mission.steps.firstOrNull { it.id == id } ?: continue
                 Text(
