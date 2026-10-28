@@ -103,8 +103,10 @@ class GuideTest {
         var guard = 0
         while (e.current !is GuideStep.Return && guard++ < 50) sim.tick { still(it) } // başlangıç (0,0)
         assertTrue(e.current is GuideStep.Return)
-        sim.tick { t -> still(t, Vec3(0.0, 2.0, 1.0)) } // yüz +y, hedef arkada
-        assertEquals(Hint.TURN_LEFT, sim.hints.last())
+        sim.tick { t -> still(t, Vec3(0.0, 2.0, 1.0)) } // yüz +y, hedef tam arkada: iki dönüş de doğru
+        assertTrue(sim.hints.last() == Hint.TURN_LEFT || sim.hints.last() == Hint.TURN_RIGHT)
+        sim.tick { t -> still(t, Vec3(0.0, 2.0, 1.0)).copy(facing = Vec3(1.0, 0.0, 0.0)) } // yüz +x, hedef -y → sağa dön
+        assertEquals(Hint.TURN_RIGHT, sim.hints.last())
         sim.tick { t -> still(t, Vec3(0.0, 2.0, 1.0)).copy(facing = Vec3(0.0, -1.0, 0.0)) }
         assertEquals(Hint.KEEP_GOING, sim.hints.last())
         sim.tick { t -> still(t, Vec3(0.0, 0.2, 1.0)).copy(facing = Vec3(0.0, -1.0, 0.0)) }
