@@ -81,7 +81,7 @@ class PhasesTest {
         """.trimIndent()
         val b = JsonCodec.decode(v1)
         assertEquals(SCHEMA_VERSION, b.schemaVersion)
-        assertEquals(2, b.project.schemaVersion)
+        assertEquals(SCHEMA_VERSION, b.project.schemaVersion)
         assertTrue(b.scans.isEmpty())
         assertEquals(AnalysisSettings(), b.analysis)
         assertNull(b.project.coordinateSystem.northAngleDeg)

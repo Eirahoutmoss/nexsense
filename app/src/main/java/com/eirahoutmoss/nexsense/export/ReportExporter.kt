@@ -101,6 +101,23 @@ class ReportExporter(private val context: Context) {
             )
         }
 
+        // Boşluk haritası (her ortam: köşe/duvar varsayımı yok)
+        val occ = com.eirahoutmoss.nexsense.core.spatial.OccupancyGrid.build(b)
+        if (occ.count(com.eirahoutmoss.nexsense.core.spatial.CellState.FREE) > 0) {
+            pw.heading(s(R.string.pdf_section_freemap))
+            pw.image(SceneRenderer.occupancy(b, occ), 280f)
+            pw.text(
+                s(
+                    R.string.pdf_freemap_caption,
+                    Fmt.num(occ.area(com.eirahoutmoss.nexsense.core.spatial.CellState.FREE), 1),
+                    Fmt.num(occ.area(com.eirahoutmoss.nexsense.core.spatial.CellState.OCCUPIED), 1),
+                    com.eirahoutmoss.nexsense.core.spatial.Frontiers.find(occ).size,
+                    b.scans.sumOf { it.rays.size },
+                ),
+                8f, PdfWriter.MUTED,
+            )
+        }
+
         pw.heading(s(R.string.pdf_section_layers))
         pw.grid(
             listOf(s(R.string.pdf_col_layer), "n", "min", s(R.string.pdf_col_median), "max", s(R.string.pdf_col_unit), s(R.string.pdf_col_flags)),
@@ -221,6 +238,7 @@ class ReportExporter(private val context: Context) {
             ScanMethod.ARCORE -> R.string.scan_arcore
             ScanMethod.PDR -> R.string.scan_pdr
             ScanMethod.ACOUSTIC_ECHO -> R.string.scan_acoustic
+            ScanMethod.ACOUSTIC_RADAR -> R.string.scan_radar
             ScanMethod.DEMO -> R.string.demo_badge
         },
     )

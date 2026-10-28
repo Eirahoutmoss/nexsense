@@ -65,6 +65,10 @@ import com.eirahoutmoss.nexsense.ui.components.DemoBadge
 import com.eirahoutmoss.nexsense.ui.components.EmptyState
 import com.eirahoutmoss.nexsense.ui.scene.SceneItem
 import com.eirahoutmoss.nexsense.ui.scene.SceneView
+import com.eirahoutmoss.nexsense.ui.scene.MapSnapshot
+import com.eirahoutmoss.nexsense.ui.scene.SpaceMap
+import com.eirahoutmoss.nexsense.core.spatial.Frontiers
+import com.eirahoutmoss.nexsense.core.spatial.OccupancyGrid
 import com.eirahoutmoss.nexsense.ui.theme.LayerColors
 import com.eirahoutmoss.nexsense.ui.theme.NexColors
 
@@ -115,6 +119,14 @@ fun SpaceScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, onG
     val unplaced = view.points.count { !it.isPlaced }
     var selection by remember(projectId) { mutableStateOf(LayerSelection()) }
     var showEstimate by rememberSaveable(projectId) { mutableStateOf(false) }
+    var showFreeMap by rememberSaveable(projectId) { mutableStateOf(false) }
+    val freeMap = remember(view, showFreeMap) {
+        if (!showFreeMap) null else {
+            val g = OccupancyGrid.build(view)
+            MapSnapshot.of(g, Frontiers.find(g).size)
+        }
+    }
+    val freePath = remember(view) { view.scans.flatMap { s -> s.trajectory.map { Vec3(it.x, it.y, it.z) } } }
     val sceneBounds = Bounds.of(items.map { it.position } + scan.points.map { Vec3(it.x, it.y, it.z) })
     var camera by remember(projectId) { mutableStateOf(OrbitCamera.fit(sceneBounds)) }
     var selectedId by rememberSaveable(projectId) { mutableStateOf<String?>(null) }
@@ -155,6 +167,11 @@ fun SpaceScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, onG
                 onClick = { showEstimate = !showEstimate },
                 label = { Text(stringResource(R.string.space_estimate)) },
             )
+            FilterChip(
+                selected = showFreeMap,
+                onClick = { showFreeMap = !showFreeMap },
+                label = { Text(stringResource(R.string.space_freemap)) },
+            )
             AssistChip(onClick = { onOverlay(Overlay.ANALYSIS) }, label = { Text(stringResource(R.string.analysis_title)) })
             if (bundle.sessions.size > 1) {
                 FilterChip(sessionFilter == null, { sessionFilter = null }, { Text(stringResource(R.string.filter_all_sessions)) })
@@ -165,7 +182,17 @@ fun SpaceScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, onG
         }
 
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            if (items.isEmpty() && scan.isEmpty) {
+            val fm = freeMap
+            if (fm != null) {
+                Column(Modifier.fillMaxSize().padding(10.dp)) {
+                    SpaceMap(fm, freePath, null, null, emptyList(), Modifier.weight(1f).fillMaxWidth())
+                    Text(
+                        stringResource(R.string.space_freemap_caption, String.format(java.util.Locale.getDefault(), "%.1f", fm.freeArea), String.format(java.util.Locale.getDefault(), "%.1f", fm.occupiedArea), fm.frontiers),
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (bundle.hasDemoData) Text(stringResource(R.string.demo_badge), style = MaterialTheme.typography.labelSmall, color = NexColors.Demo)
+                }
+            } else if (items.isEmpty() && scan.isEmpty) {
                 EmptyState(
                     icon = Icons.Outlined.MyLocation,
                     title = stringResource(R.string.space_empty_title),

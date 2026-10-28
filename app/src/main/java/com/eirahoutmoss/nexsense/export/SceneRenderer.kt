@@ -14,6 +14,8 @@ import com.eirahoutmoss.nexsense.core.model.ProjectBundle
 import com.eirahoutmoss.nexsense.core.scene.Bounds
 import com.eirahoutmoss.nexsense.core.scene.OrbitCamera
 import com.eirahoutmoss.nexsense.core.scene.Vec3
+import com.eirahoutmoss.nexsense.core.spatial.CellState
+import com.eirahoutmoss.nexsense.core.spatial.OccupancyGrid
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
@@ -141,6 +143,40 @@ object SceneRenderer {
     }
 
     /** Perspektif görünüm (uygulamadaki 3B sahneyle aynı izdüşüm). */
+    /**
+     * Boşluk haritası (kuşbakışı): boş hücreler mavi, dolu hücreler koyu, bilinmeyen beyaz kalır.
+     * Renk yoğunluğu hücrenin güvenini gösterir. Radar ışınları ince çizgiyle.
+     */
+    fun occupancy(bundle: ProjectBundle, g: OccupancyGrid, w: Int = 1400, h: Int = 1000): Bitmap {
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val c = Canvas(bmp)
+        c.drawColor(Color.WHITE)
+        val known = g.cells().filter { it.state != CellState.UNKNOWN }
+        if (known.isEmpty()) return bmp
+        val minX = min(known.minOf { it.i } * g.cellM, 0.0) - 0.5; val maxX = max((known.maxOf { it.i } + 1) * g.cellM, 0.0) + 0.5
+        val minY = min(known.minOf { it.j } * g.cellM, 0.0) - 0.5; val maxY = max((known.maxOf { it.j } + 1) * g.cellM, 0.0) + 0.5
+        val pad = 60f
+        val scale = min((w - 2 * pad) / (maxX - minX), (h - 2 * pad) / (maxY - minY)).toFloat()
+        fun px(x: Double) = pad + ((x - minX) * scale).toFloat()
+        fun py(y: Double) = h - pad - ((y - minY) * scale).toFloat()
+        val gp = Paint().apply { this.color = GRID; strokeWidth = 1.5f }
+        var gx = floor(minX)
+        while (gx <= ceil(maxX)) { c.drawLine(px(gx), py(minY), px(gx), py(maxY), gp); gx += 1.0 }
+        var gy = floor(minY)
+        while (gy <= ceil(maxY)) { c.drawLine(px(minX), py(gy), px(maxX), py(gy), gp); gy += 1.0 }
+        val cp = Paint().apply { style = Paint.Style.FILL }
+        for (cell in known) {
+            val a = (60 + 170 * cell.confidence).toInt().coerceIn(0, 255)
+            cp.color = if (cell.state == CellState.FREE) Color.argb(a, 47, 107, 255) else Color.argb(a, 20, 26, 33)
+            c.drawRect(px(cell.i * g.cellM), py((cell.j + 1) * g.cellM), px((cell.i + 1) * g.cellM), py(cell.j * g.cellM), cp)
+        }
+        val rp = Paint().apply { this.color = PLANE; strokeWidth = 1.5f; alpha = 120 }
+        for (r in bundle.scans.flatMap { it.rays }) c.drawLine(px(r.ox), py(r.oy), px(r.x), py(r.y), rp)
+        val op = Paint().apply { this.color = INK; style = Paint.Style.STROKE; strokeWidth = 3f }
+        c.drawCircle(px(0.0), py(0.0), 10f, op)
+        return bmp
+    }
+
     fun perspective(bundle: ProjectBundle, layer: LayerData?, color: (Double) -> Int, w: Int = 1400, h: Int = 900): Bitmap {
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)

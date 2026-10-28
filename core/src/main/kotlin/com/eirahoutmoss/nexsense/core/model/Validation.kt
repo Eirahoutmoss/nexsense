@@ -99,6 +99,9 @@ object Validation {
                 add(ValidationIssue(ValidationIssue.Code.BAD_SCAN, "${sc.id}: plane"))
             }
         }
+        if (sc.rays.any { r -> listOf(r.ox, r.oy, r.oz, r.x, r.y, r.z, r.c).any { !it.isFinite() } || r.c < 0.0 || r.c > 1.0 }) {
+            add(ValidationIssue(ValidationIssue.Code.BAD_SCAN, "${sc.id}: ray"))
+        }
         if (sc.trajectory.any { !it.x.isFinite() || !it.y.isFinite() || !it.z.isFinite() || !it.t.isFinite() }) {
             add(ValidationIssue(ValidationIssue.Code.BAD_SCAN, "${sc.id}: trajectory"))
         }

@@ -11,6 +11,8 @@
 | 5 — Mekânsal örüntü motoru | ✅ 0.2.0 |
 | 6 — Raporlama (PDF, 3B model, vaka dosyası, onaylı paylaşım) | ✅ 0.2.0 |
 | Rehberli Keşif (meraklı kullanıcı için yönlendirmeli ölçüm) | ✅ 0.3.0 |
+| Her ortamda haritalama (boşluk haritası, akustik radar, serbest keşif) | ✅ 0.4.0 |
+| Dinleme ve kaynak bulma (vuruş/ses benzeri dinleme, çok telefonlu konumlama, tatbikat) | ⏳ sıradaki |
 
 ## Faz 1 — MVP (0.1.0) ✅
 
@@ -48,6 +50,14 @@ PDF rapor (özet, perspektif ve katman başına plan görüntüleri, tablolar, a
 Uygulama kullanıcıya eylem söyler (kaldır, indir, yürü, dön, köşeye git, masaya bırak), sensörlerle doğrular, düzeltir ve veriyi kendisi kaydeder. 4 görev, sesli yönerge, titreşim, "neden?" açıklamaları, dürüst kalite özeti. Ayrıntı: `docs/REHBER.md`.
 
 Sonra: gerçek kullanıcı denemeleriyle eşik ayarı; görevleri birbirine bağlayan "keşif yolu" (kullanıcının önceki sonuçlarına göre bir sonraki görevi önermek); 3B sahnede adım hedefini gösteren AR oku.
+
+## Her ortamda haritalama (0.4.0) ✅
+
+Köşe/duvar varsaymayan olasılıksal boşluk haritası (10 cm hücre; boş/dolu/bilinmeyen), sınır tabanlı serbest keşif, 12 dilimli akustik radar (yönlü olmadığı açıkça belirtilir, ışın güveni ≤ 0,6), şema 3 (`Scan.rays`), Mekân ekranında ve PDF'te boşluk haritası. Ayrıntı: `docs/KESIF.md`.
+
+## Sıradaki: dinleme ve kaynak bulma
+
+Sessiz anda dinleme (vuruş, ritmik desen, ses benzeri bant; ses kaydedilmez), dinleme kayıtlarının dosyayla paylaşılması, birkaç telefonun kayıtlarından genliğe dayalı yaklaşık kaynak bölgesi, tatbikat modu. Haricî donanım bu planın dışında (ayrı plan).
 
 ## Sonraki küçük işler
 
