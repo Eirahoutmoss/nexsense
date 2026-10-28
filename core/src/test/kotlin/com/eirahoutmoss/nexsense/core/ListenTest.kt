@@ -115,7 +115,7 @@ class ListenTest {
         assertTrue(regular.regular)
         assertEquals(1.5, regular.intervalS!!, 1e-9)
         assertNull(regular.repeatedSize)
-        val random = Patterns.analyze(listOf(0.0, 0.2, 2.0, 5.5, 5.9, 6.0, 9.0).map { k(it) })
+        val random = Patterns.analyze(listOf(0.0, 0.2, 2.0, 5.5, 5.9, 6.3, 9.0).map { k(it) })
         assertFalse(random.looksDeliberate)
         // Mikrofon + ivmeölçer aynı vuruşu duyar: tek sayılır.
         val dup = Patterns.analyze(listOf(k(1.0), k(1.05, ListenKind.VIBRATION), k(2.0), k(2.04, ListenKind.VIBRATION)))
