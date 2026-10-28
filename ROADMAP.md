@@ -12,7 +12,7 @@
 | 6 — Raporlama (PDF, 3B model, vaka dosyası, onaylı paylaşım) | ✅ 0.2.0 |
 | Rehberli Keşif (meraklı kullanıcı için yönlendirmeli ölçüm) | ✅ 0.3.0 |
 | Her ortamda haritalama (boşluk haritası, akustik radar, serbest keşif) | ✅ 0.4.0 |
-| Dinleme ve kaynak bulma (vuruş/ses benzeri dinleme, çok telefonlu konumlama, tatbikat) | ⏳ sıradaki |
+| Dinleme ve kaynak bulma (vuruş/ses benzeri dinleme, çok telefonlu konumlama, tatbikat) | ✅ 0.5.0 |
 
 ## Faz 1 — MVP (0.1.0) ✅
 
@@ -55,9 +55,11 @@ Sonra: gerçek kullanıcı denemeleriyle eşik ayarı; görevleri birbirine bağ
 
 Köşe/duvar varsaymayan olasılıksal boşluk haritası (10 cm hücre; boş/dolu/bilinmeyen), sınır tabanlı serbest keşif, 12 dilimli akustik radar (yönlü olmadığı açıkça belirtilir, ışın güveni ≤ 0,6), şema 3 (`Scan.rays`), Mekân ekranında ve PDF'te boşluk haritası. Ayrıntı: `docs/KESIF.md`.
 
-## Sıradaki: dinleme ve kaynak bulma
+## Dinleme ve kaynak bulma (0.5.0) ✅
 
-Sessiz anda dinleme (vuruş, ritmik desen, ses benzeri bant; ses kaydedilmez), dinleme kayıtlarının dosyayla paylaşılması, birkaç telefonun kayıtlarından genliğe dayalı yaklaşık kaynak bölgesi, tatbikat modu. Haricî donanım bu planın dışında (ayrı plan).
+Sessiz an protokolü (gürültü tabanı, sesli çağrı, 20 sn dinleme), vuruş / ses benzeri / sarsıntı algılama (ses kaydedilmez), bilinçli vuruş deseni, `.nexlisten.json` dosya alışverişi, olay dizilerinden saat hizalama, genlik tabanlı yaklaşık kaynak bölgesi, tatbikat (hata ve mikrofon farkı). Ayrıntı: `docs/DINLEME.md`. Haricî donanım bu planın dışında (ayrı plan).
+
+Sonra: ilk tatbikatlarla eşik ayarı; dinleme sonuçlarını projenin Mekân sahnesine katman olarak eklemek; Bluetooth/yakın paylaşımla tek dokunuşta kayıt toplama.
 
 ## Sonraki küçük işler
 

@@ -2,6 +2,8 @@
 
 Nex uygulama ailesinin mekânsal sensör uygulaması (Android). Telefonun yerleşik sensörlerinden ölçüm toplar, ölçümleri zaman ve **kullanıcının kendi referans noktasına göre** konumla ilişkilendirir ve sonuçları katmanlı, etkileşimli bir 3B sahnede gösterir.
 
+**0.5.0'da yeni — Dinleme ve kaynak bulma:** arama-kurtarmadaki "sessiz an" telefonla: vuruş, ses benzeri sinyal ve (yüzeye dayalıyken) yapıdan gelen sarsıntı algılama; "3'lü gruplar" gibi bilinçli vuruş deseni; birkaç telefonun kayıtlarını (`.nexlisten.json`, ses içermez) dosyayla paylaşıp birleştirerek saat hizalama ve düzey farklarından **yaklaşık kaynak bölgesi**; bilinen yerde yapay vuruş çalan **tatbikat** modu (hata ve mikrofon farkı ölçümü). Tasarım notları: [`docs/DINLEME.md`](docs/DINLEME.md).
+
 **0.4.0'da yeni — Her ortamda haritalama:** köşe ya da duvar varsaymayan **boşluk haritası** (boş / dolu / bilinmeyen hücreler), olduğun yerde dönerken her yöne ses darbesi gönderen **akustik radar** ve haritanın bilinmeyen kenarına yönlendiren **serbest keşif** görevi. Mağara, koridor, açık alan ya da yıkıntı çevresi gibi oda olmayan yerler için. Mekân ekranında ve PDF'te boşluk haritası. Tasarım notları: [`docs/KESIF.md`](docs/KESIF.md).
 
 **0.3.0'da yeni — Rehberli Keşif:** meraklı kullanıcı için. Uygulama tek tek ne yapacağını söyler ("telefonu diz hizasına indir", "2 m ileri yürü", "yavaşça dön", "masaya bırak"), sensörlerle hareketi denetler, gerekirse düzeltir ("biraz daha yukarı", "yavaşla") ve veriyi doğru anda kendisi kaydeder. Sesli yönerge, titreşim, "neden?" açıklamaları, atlanabilir adımlar ve dürüst kalite özeti var. Tasarım notları: [`docs/REHBER.md`](docs/REHBER.md).
@@ -21,6 +23,7 @@ Nex uygulama ailesinin mekânsal sensör uygulaması (Android). Telefonun yerle�
 |---|---|
 | **Ana Sayfa** | Projeler (oluştur, aç, yeniden adlandır, sil), ölçüme başla, demo projesi |
 | **Rehberli keşif** | Görevler: İlk keşif, **Serbest keşif**, **Ses radarı**, Oda haritası, Duvar manyetik izi, Oda sesi (1–8 dk). Radar ekranı ve canlı boşluk haritası; Tek yönerge + büyük ok + ilerleme; sesli yönerge; doğrulanınca otomatik kayıt; sensör yoksa elle onay ("tahmini" işaretli); sonunda otomatik/onaylı/atlanan adımlar ve kalite |
+| **Dinleme** | Dinle (gürültü tabanı, sesli çağrı, 20 sn sessiz an döngüsü, canlı olay listesi ve desen), Birleştir (içe al, seç, paylaş, saat hizalama, olay eşleme, belirsizlik bölgeli kuşbakışı harita, en yüksek düzeyle duyan), Tatbikat (bilinen yerde "3–3–3" çal, hata ve mikrofon farkı). Ses kaydedilmez |
 | **Otomatik ölçüm** | Başlat → yürü. ARCore modu: telefonun konumu cm düzeyinde izlenir; her 0,25–2 m'de ölçüm noktası (konum + o anki sensör değerleri + yönelim) kendiliğinden kaydedilir; nokta bulutu (özellik noktaları + destekleyen cihazda derinlik), yatay/düşey düzlemler, yürüme yolu. Başlangıç = referans noktası ya da var olan bir nokta. ARCore yoksa adım modu (kaba, "tahmini konum") |
 | **Sabit nokta: akustik** | Telefon sabit bir yerde: oda yankı süresi (oktav bantları, kalite, oda modları), yankı mesafesi (sonar, 3 yankıya kadar), ses düzeyi / yaklaşık dB SPL / baskın frekans, akustik yön taraması (yüzeylere doğrultarak 3B noktalar, deneysel). Sonuçlar seçilen noktaya kaydedilir |
 | **Analiz** | Ölçüm yeterliliği, eşik uyarıları, anomali adayları (sağlam z), katman ilişkileri (Pearson), zaman çizgisi ve aynı yerde oturumlar arası değişim, yönden bağımsız manyetik bileşenler, IDW tahmin ayarları, yaklaşık oda boyutu |
@@ -121,10 +124,11 @@ keyPassword=...
 | Akustik | RT60 (yapay odalarla, NexTools testleri), çoklu yankı sırası, bilinmeyen hoparlör gecikmesinde darbe hizalama, dBFS/ofset/baskın frekans |
 | Analiz | IDW (ölçüm noktasında doğru, uzakta boş, az noktada yok), anomali, eşik, yeterlilik, ilişki, zaman çizgisi, manyetik dünya bileşenleri, oda boyutu |
 | Rapor | PLY başlık/gövde tutarlılığı, vaka dosyası SHA-256 listesi |
+| Dinleme | yapay vuruş dizisinden 9 vuruş ve "3'lü × 3" deseni; ses benzeri ile uğultunun ayrılması; titreşim kalibrasyonu ve bekleme süresi; düzenli/rastgele desen ve mikrofon+ivmeölçer çift sayımı; kayıt biçimi gidiş-dönüşü ve hatalı dosya reddi; saat kaymasının olay dizisinden bulunması (ortak olay yoksa uydurulmaması); 4 ve 3 dinleyiciyle konum ve belirsizlik; uçtan uca tatbikat (saat düzeltmesi, 5 dB mikrofon farkının bulunması, hata < 0,6 m) |
 | Her ortamda haritalama | ışınla boşluk/dolu işaretleme, çelişen kanıt, Bresenham; koridorda sınırın yalnızca açık uçta çıkması; sınır seçimi; radar dilimleri, dönüş yönü, ışın güven sınırı; radar adımının her dilimi bir kez ölçmesi; sınır kalmayınca görevin bitmesi; demo verisinden harita; radar taramasının JSON gidiş-dönüşü ve geçersiz ışın reddi |
 | Rehberli keşif | her adım türü yapay sensör akışıyla: durgunluk, 8 kalibrasyonu, yükseklik ipuçları, ileri/yana yürüme ve sapma düzeltmesi, dönüş ve hız uyarısı, başlangıca dönüş, köşe işaretleme, masaya bırakınca akustik, sensör yoksa dürüst elle onay, kalite ve konum kaybı sayımı |
 
-**Gerçek cihazda denenmedi (0.1.0–0.4.0).** Compose arayüz testleri ve cihaz üstü testler bu sürümde yok; emülatörde de çalıştırılmadı (CI'da emülatör yok). Sensör okuma, izin akışı, 3B sahne hareketleri ve dosya kaydetme diyalogları gerçek telefonda elle denenmelidir:
+**Gerçek cihazda denenmedi (0.1.0–0.5.0).** Compose arayüz testleri ve cihaz üstü testler bu sürümde yok; emülatörde de çalıştırılmadı (CI'da emülatör yok). Sensör okuma, izin akışı, 3B sahne hareketleri ve dosya kaydetme diyalogları gerçek telefonda elle denenmelidir:
 
 1. Uygulamayı aç → **Yeni proje** → Canlı: sensör kartları dolmalı; olmayanlar "desteklenmiyor" demeli.
 2. Ses seviyesini başlat → izni **reddet** → uygulama çökmemeli, kart "izin verilmedi" demeli.
@@ -134,16 +138,18 @@ keyPassword=...
 6. Rapor → CSV ve JSON kaydet → JSON'u içe al → kopya proje oluşmalı.
 7. Canlı → **Rehberli keşif** → İlk keşif: sesli yönergelerle adımları yap; "biraz daha yukarı/aşağı", "yavaşla" uyarılarının doğru çıktığını ve sonunda özetin geldiğini gör. Oda sesi görevinde telefonu masaya bırakınca ölçüm kendiliğinden başlamalı.
 8. Rehberli keşif → **Ses radarı**: olduğun yerde dön; her yönde bir an durunca "tık" sesleri çalmalı, radar ekranında dilimler dolmalı. **Serbest keşif**: radar sonrası haritada mavi (boş) alan ve sarı hedef halkası görünmeli; hedefe yürüyünce yeni radar başlamalı. Mekân → **Boşluk haritası**.
-9. Canlı → **Otomatik ölçüm** → ARCore → kamera izni → başlat, odada yavaşça bir tur at → noktalar kendiliğinden eklenmeli; Bitir → Mekân'da nokta bulutu, düzlemler, yol ve renkli noktalar.
-10. ARCore'u kapatıp (ya da desteklemeyen telefonda) **Adım sayımı** ile aynı turu at → kesikli halkalı noktalar.
-11. **Sabit nokta: akustik** → telefonu masaya koy → Oda akustiği, Yankı mesafesi, Ses düzeyi → "Noktaya kaydet"; Yön taraması ile birkaç yüzey ölç → Taramayı kaydet.
-12. Rapor → PDF, PLY, vaka dosyası kaydet; Paylaş → onay ekranı çıkmalı. PLY'yi MeshLab/CloudCompare'de aç.
+9. Canlı → **Dinleme**: Dinle → sessiz anda masaya üç kez, iki tur vur → olaylar "Vuruş" ve "3'lü gruplar, 2 kez" görünmeli; konuşunca "Ses benzeri". Kaydet → Paylaş. Üç-dört telefonla: hepsi "Tatbikat" açık dinlesin, biri Tatbikat sekmesinden çalsın; kayıtları bir telefonda içe al → Birleştir → tatbikat hatası ve mikrofon farkları.
+10. Canlı → **Otomatik ölçüm** → ARCore → kamera izni → başlat, odada yavaşça bir tur at → noktalar kendiliğinden eklenmeli; Bitir → Mekân'da nokta bulutu, düzlemler, yol ve renkli noktalar.
+11. ARCore'u kapatıp (ya da desteklemeyen telefonda) **Adım sayımı** ile aynı turu at → kesikli halkalı noktalar.
+12. **Sabit nokta: akustik** → telefonu masaya koy → Oda akustiği, Yankı mesafesi, Ses düzeyi → "Noktaya kaydet"; Yön taraması ile birkaç yüzey ölç → Taramayı kaydet.
+13. Rapor → PDF, PLY, vaka dosyası kaydet; Paylaş → onay ekranı çıkmalı. PLY'yi MeshLab/CloudCompare'de aç.
 
 ## Sınırlamalar
 
 - Haricî sensör (BLE) yok — Faz 3 bilerek bekletiliyor; sıcaklık/nem çoğu telefonda "desteklenmiyor" görünür.
 - ARCore yalnızca destekli telefonlarda (Google Play Hizmetleri – AR). Düz, desensiz duvarlarda ve karanlıkta izleme kaybolabilir. Ayrı taramalar ancak aynı başlangıç noktasıyla aynı çerçevede birleşir (otomatik eşleştirme yok).
 - Adım modu kabadır: hata her adımda birikir, yükseklik ölçülmez.
+- Dinlemede yer bulma genlik tabanlıdır (serbest alan varsayımı); duvar, enkaz ve yankı sonucu bozar. Sonuç bir ipucudur; profesyonel arama-kurtarma araçlarının yerini tutmaz.
 - Akustik radar yönlü değildir (telefon hoparlörü her yöne çalar); halkalar düşük güvenle işlenir. Boşluk haritası 2B'dir (telefon yüksekliği bandı).
 - Ses basıncı yalnızca kullanıcı ofsetiyle ve ağırlıksız (A/C yok) yaklaşık dB SPL'dir.
 - Yalnızca Android. iOS planlanmadı.

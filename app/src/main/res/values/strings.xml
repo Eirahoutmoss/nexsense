@@ -297,7 +297,7 @@ NexSense is an exploration and logging tool, not a professional instrument.
     <string name="listen_drill_error">DRILL result: the estimate is %1$s m from the true source (knocks played: %2$d).</string>
     <string name="listen_drill_failed">Could not play the sound.</string>
     <string name="listen_drill_honesty">Note: the speaker start-up delay (usually under 0.1 s) is unknown; this does not affect matching much, since locating uses level, not timing.</string>
-    <string name="listen_drill_intro">Try the setup before a real event: this phone plays a \"3-3-3\" knock sound at a known spot. First start listening on the other phones with \"Drill\" on, then play here. If you also select this source record on the Combine tab, you see how far the estimate is from the true spot and the microphone differences between phones.</string>
+    <string name="listen_drill_intro">Try the setup before a real event: this phone plays a \"3–3–3\" knock sound at a known spot. First start listening on the other phones with \"Drill\" on, then play here. If you also select this source record on the Combine tab, you see how far the estimate is from the true spot and the microphone differences between phones.</string>
     <string name="listen_drill_need_position">The source position is needed to measure the error.</string>
     <string name="listen_drill_no_error">DRILL: the error could not be measured because no location was computed (knocks played: %1$d).</string>
     <string name="listen_drill_play">Play drill signal</string>
