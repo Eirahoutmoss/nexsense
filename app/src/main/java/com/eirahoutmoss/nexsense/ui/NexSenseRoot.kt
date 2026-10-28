@@ -46,6 +46,7 @@ import com.eirahoutmoss.nexsense.ui.screens.AnalysisScreen
 import com.eirahoutmoss.nexsense.ui.screens.AutoScanScreen
 import com.eirahoutmoss.nexsense.ui.screens.GuidedScreen
 import com.eirahoutmoss.nexsense.ui.screens.HomeScreen
+import com.eirahoutmoss.nexsense.ui.screens.ListenScreen
 import com.eirahoutmoss.nexsense.ui.screens.LiveScreen
 import com.eirahoutmoss.nexsense.ui.screens.MeasurementsScreen
 import com.eirahoutmoss.nexsense.ui.screens.ReportScreen
@@ -67,6 +68,7 @@ enum class Overlay(val title: Int) {
     GUIDED(R.string.guide_title),
     ACOUSTIC(R.string.acoustic_title),
     ANALYSIS(R.string.analysis_title),
+    LISTEN(R.string.listen_title),
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -155,6 +157,7 @@ fun NexSenseRoot(c: AppContainer) {
             overlay == Overlay.GUIDED -> GuidedScreen(c, bundle, m, onDone = back)
             overlay == Overlay.ACOUSTIC -> AcousticScreen(c, bundle, m, onDone = back)
             overlay == Overlay.ANALYSIS -> AnalysisScreen(c, bundle, m, onDone = { overlay = null })
+            overlay == Overlay.LISTEN -> ListenScreen(c, bundle, m)
             else -> when (tab) {
                 Tab.HOME -> HomeScreen(c, bundle, m, onGo = { tab = it })
                 Tab.LIVE -> LiveScreen(c, bundle, m, onGo = { tab = it }, onOverlay = open)

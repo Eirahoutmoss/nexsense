@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddLocationAlt
 import androidx.compose.material.icons.outlined.Explore
+import androidx.compose.material.icons.outlined.Hearing
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Mic
@@ -169,6 +170,17 @@ fun LiveScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, onGo
                     Column {
                         Text(stringResource(R.string.live_guided), style = MaterialTheme.typography.titleSmall)
                         Text(stringResource(R.string.live_guided_sub), style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+                // Dinleme: sessiz anda vuruş ve sese benzeyen sinyaller; birkaç telefonla kaynak bölgesi.
+                OutlinedButton(
+                    onClick = { onOverlay(Overlay.LISTEN) },
+                    modifier = Modifier.fillMaxWidth().height(56.dp).padding(bottom = 8.dp),
+                ) {
+                    Icon(Icons.Outlined.Hearing, null); Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text(stringResource(R.string.live_listen), style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.live_listen_sub), style = MaterialTheme.typography.labelSmall)
                     }
                 }
                 // Otomatik ölçüm: koordinat yazmadan, yürüyerek. Akustik: telefon sabit noktada.

@@ -118,6 +118,18 @@ jobs:
             echo '```'
             grep -E "^e: |error:|Error:|FAILED|What went wrong|> Task .* FAILED|Lint found|^\s+at |Exception" derleme.log | head -n 120 || true
             echo '```'
+            python3 - <<'PY'
+          import glob, xml.etree.ElementTree as ET
+          out = []
+          for x in glob.glob('core/build/test-results/test/*.xml'):
+              for tc in ET.parse(x).getroot().iter('testcase'):
+                  for fl in list(tc.iter('failure')) + list(tc.iter('error')):
+                      msg = (fl.get('message') or '').strip()[:400]
+                      out.append(f"- {tc.get('classname','').split('.')[-1]}.{tc.get('name')}: {msg}")
+          if out:
+              print('#### Başarısız testler')
+              print('\n'.join(out[:40]))
+          PY
             if [ -f app/build/reports/lint-results-debug.txt ]; then
               echo "#### Lint"
               echo '```'
