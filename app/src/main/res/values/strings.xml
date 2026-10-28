@@ -219,7 +219,7 @@ NexSense is an exploration and logging tool, not a professional instrument.
     <string name="guide_quality_good">Measurement quality: good</string>
     <string name="guide_quality_poor">Measurement quality: poor</string>
     <string name="guide_radar_honesty">Rings are estimates: the phone speaker is not directional.</string>
-    <string name="guide_radar_status">Radar: %1$d of %2$d directions</string>
+    <string name="guide_radar_status">Radar directions: %1$d / %2$d</string>
     <string name="guide_see_space">See in Space</string>
     <string name="guide_skip">Skip</string>
     <string name="guide_step_of">Step %1$d / %2$d · saved: %3$d</string>

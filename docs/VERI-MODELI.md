@@ -1,4 +1,4 @@
-# NexSense veri modeli — şema 2
+# NexSense veri modeli — şema 3
 
 Kaynak: [`core/src/main/kotlin/.../core/model/Model.kt`](../core/src/main/kotlin/com/eirahoutmoss/nexsense/core/model/Model.kt)
 
@@ -26,7 +26,7 @@ Her proje tek bir JSON dosyasıdır (`ProjectBundle`). Uygulama içinde `files/p
 | Eksik değer | `null`. Sıfırla karıştırılmaz. NaN/sonsuz kaydedilmez |
 | Koordinat | Ya x, y, z üçü birden bilinir ya da üçü de `null`'dır. Yarım koordinat reddedilir; uygulama sahte koordinat üretmez |
 | Kaynak | `device` (yerleşik sensör), `external` (haricî; Faz 3), `derived` (ham ölçümden hesaplanmış), `demo` (uydurma) |
-| Sürüm | `schemaVersion` artınca `Migrations.upgrade` adımı eklenir; daha yeni şemalı dosya içe alınmaz. **1 → 2**: yeni alanlar varsayılanla gelir, ölçüm verisi değişmez |
+| Sürüm | `schemaVersion` artınca `Migrations.upgrade` adımı eklenir; daha yeni şemalı dosya içe alınmaz. **1 → 2**: yeni alanlar varsayılanla gelir, ölçüm verisi değişmez. **2 → 3**: taramalara `rays` (boş liste) eklenir |
 
 ## Project
 
@@ -106,11 +106,12 @@ Bir projede aynı anda en fazla bir açık oturum vardır. Açık oturum yokken 
 | Alan | Tür | Not |
 |---|---|---|
 | `id`, `projectId`, `sessionId` | string | |
-| `method` | `arcore` \| `pdr` \| `acoustic_echo` \| `demo` | |
+| `method` | `arcore` \| `pdr` \| `acoustic_echo` \| `acoustic_radar` \| `demo` | `acoustic_radar` (şema 3): rehberli radar taraması |
 | `startedAt`, `endedAt` | ISO 8601 | |
 | `points` | `[{x,y,z,c,k}]` | proje koordinatı (m); `c` güven 0..1; `k`: `f` ARCore özellik noktası, `d` derinlik, `a` akustik. 5 cm vokselle seyreltilir, en fazla 30 000 |
 | `planes` | `[{type, polygon, areaM2}]` | `horizontal_up` (zemin **ya da** masa), `horizontal_down`, `vertical`; köşeler `[x,y,z]` |
 | `trajectory` | `[{t,x,y,z}]` | telefonun yolu, 10 cm'de bir |
+| `rays` | `[{ox,oy,oz,x,y,z,hit,c}]` | (şema 3) akustik radar ışınları, proje koordinatı (m): telefon → yankı (`hit: true`) ya da menzil sonu (`hit: false`, yankı yok). `c` güven 0..1 (radar için ≤ 0,6; yankısız 0,2). Boşluk haritası bu ışınlardan, izlerden ve noktalardan her açılışta yeniden kurulur; harita kendisi saklanmaz. Ayrıntı: `docs/KESIF.md` |
 | `alignment` | `{startPointId, offsetX/Y/Z, yawDeg, note}` | tarama çerçevesi → proje çerçevesi: önce z etrafında `yawDeg`, sonra öteleme |
 
 **ARCore çerçevesi:** y yukarı, oturum başında orijin. Eşleme `(x, y, z)ₚ = (x, −z, y)ₐᵣ`; ilk izlenen karede telefonun konumu orijin, baktığı yatay yön +y olur; sonra `alignment` uygulanır.

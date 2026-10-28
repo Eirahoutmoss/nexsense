@@ -25,6 +25,8 @@ sensörler (10 Hz) ─► GuideSignals ─► GuideEngine ─► GuideFrame
 | Return | "Başladığın yere dön" | hedefe yön → "sola/sağa dön", 40 cm içinde biter | — (yol hatası göstergesi) |
 | Mark | "Köşeye git ve dur" | önceki işaretlerden ≥ 0,8 m uzak + 2 sn duruş | köşe noktası |
 | PlaceFlat | "Telefonu masaya bırak" | eğim ve yuvarlanma < 10°, 2 sn durgun | oda yankısı + sonar + ses düzeyi |
+| RadarSweep | "Yavaşça dön, her yönde bir an dur" | bakış yönü 12 dilimden ölçülmemiş birinde, 0,6 sn sabit | o yönde sonar ışını |
+| Frontier | "Haritanın bilinmeyen kenarına yürü" | seçilen sınıra 0,6 m yaklaşma; sınır kalmazsa görev biter | (yol → boş alan) |
 
 **Konum kaynağı:** ARCore varsa santimetre düzeyi; yoksa adım sayımı + pusula (kaba, "tahmini") ve yükseklik için barometre (~8,4 m/hPa). Bir adımın ihtiyaç duyduğu veri telefonda yoksa adım **elle onaya** düşer ("Yaptım"). Kaydedilen konum ölçülmediği için **tahmini** işaretlenir (güven 0,2). Sahte ölçüm üretilmez.
 
@@ -47,6 +49,8 @@ sensörler (10 Hz) ─► GuideSignals ─► GuideEngine ─► GuideFrame
 | Oda haritası | ~3 dk | tam tur taraması, 4 köşe (oda planı), dönüş |
 | Duvar manyetik izi | ~2 dk | göğüs ve diz hizasında duvar boyunca 25 cm aralıklı manyetik profil |
 | Oda sesi | ~1 dk | yankı süresi (RT60), yüzeylere mesafe, ses düzeyi, baskın frekans |
+| Serbest keşif | ~8 dk | şekil varsaymadan: radar → sınıra yürü → radar (5 tura kadar); boşluk haritası. Ayrıntı: `docs/KESIF.md` |
+| Ses radarı | ~2 dk | olduğun yerde 12 yönde sonar; radar ekranı ve boşluk haritası |
 
 Yeni görev eklemek: `Missions` içine adım listesi + metinler (`step_*`, `why_*`, `mission_*`).
 
