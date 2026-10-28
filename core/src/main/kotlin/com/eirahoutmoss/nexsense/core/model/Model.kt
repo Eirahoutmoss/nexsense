@@ -4,7 +4,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * NexSense veri modeli — şema sürümü 2 (1 → 2: taramalar, AR/adım konum kaynakları, akustik türler, analiz ayarları).
+ * NexSense veri modeli — şema sürümü 3 (1 → 2: taramalar, AR/adım konum kaynakları, akustik türler, analiz ayarları;
+ * 2 → 3: akustik radar ışınları).
  *
  * Kurallar (ayrıntı: docs/VERI-MODELI.md):
  *  - Zaman damgaları ISO 8601, UTC ("2026-10-27T18:00:00.123Z").
@@ -13,7 +14,7 @@ import kotlinx.serialization.Serializable
  *  - Koordinat bilinmiyorsa x/y/z `null` kalır; uygulama sahte koordinat üretmez.
  *  - Veri kaynağı (cihaz / haricî / türetilmiş / demo) ve kalite bilgisi korunur.
  */
-const val SCHEMA_VERSION = 2
+const val SCHEMA_VERSION = 3
 
 /** Dışa aktarılan ve diskte saklanan dosyanın biçim adı. */
 const val BUNDLE_FORMAT = "nexsense-project"

@@ -40,10 +40,14 @@ data class GuideSignals(
     val accelMagnitude: Double? = null,
     /** Manyetometre doğruluk durumu: high / medium / low / unreliable. */
     val magAccuracy: String? = null,
+    /** (keşif) Uygulamanın haritadan seçtiği bir sonraki sınır; yoksa null. */
+    val frontier: Vec3? = null,
+    /** (keşif) Haritada gidilecek sınır kalmadı. */
+    val frontierExhausted: Boolean = false,
 )
 
 /** Bir adımın ihtiyaç duyduğu veri. */
-enum class Need { MOTION, ORIENTATION, HEIGHT, POSITION }
+enum class Need { MOTION, ORIENTATION, HEIGHT, POSITION, ACOUSTIC }
 
 enum class Dir(val deg: Double) { FORWARD(0.0), LEFT(90.0), RIGHT(-90.0) }
 
@@ -87,6 +91,16 @@ sealed interface GuideStep {
         override val needs = setOf(Need.POSITION, Need.MOTION)
     }
 
+    /** Akustik radar: olduğun yerde yavaşça dön; her ölçülmemiş yönde kısa durunca sonar alınır. */
+    data class RadarSweep(override val id: String, val sectors: Int = 12, val holdS: Double = 0.6) : GuideStep {
+        override val needs = setOf(Need.ORIENTATION, Need.ACOUSTIC)
+    }
+
+    /** Haritadaki bir sonraki keşif sınırına git (boş ile bilinmeyenin buluştuğu yer). Sınır kalmadıysa görev biter. */
+    data class Frontier(override val id: String, val tolM: Double = 0.6) : GuideStep {
+        override val needs = setOf(Need.POSITION)
+    }
+
     /** Telefonu düz bir yüzeye bırak; durunca akustik ölçümler başlar (uygulama tamamlar). */
     data class PlaceFlat(override val id: String, val holdS: Double = 2.0) : GuideStep {
         override val needs = setOf(Need.ORIENTATION, Need.MOTION)
@@ -108,6 +122,9 @@ enum class CaptureKind {
 
     /** Akustik ölçümleri başlat (oda yankısı, sonar, ses düzeyi); uygulama bitince [GuideEngine.completeExternal]. */
     ACOUSTIC_SUITE,
+
+    /** Tek yönde sonar (radar dilimi); uygulama bitince [GuideEngine.completePing]. [Capture.yawDeg] yönü verir. */
+    ACOUSTIC_PING,
 }
 
 /** Uygulamanın kaydetmesi istenen veri. [estimated]: konum ölçülmedi, adımın hedefinden varsayıldı. */
@@ -117,6 +134,8 @@ data class Capture(
     val index: Int,
     val position: Vec3?,
     val estimated: Boolean,
+    /** (radar) Ölçümün yönü, proje çerçevesinde atan2(y, x) derece. */
+    val yawDeg: Double? = null,
 )
 
 enum class StepOutcome { AUTO, MANUAL, SKIPPED }
@@ -201,7 +220,26 @@ object Missions {
         minutes = 1,
     )
 
-    val ALL = listOf(FIRST, ROOM, MAGNETIC, SOUND)
+    /** Akustik radar: tek noktada 360° çevre profili. Karanlıkta ve tozda da çalışır. */
+    val RADAR = Mission(
+        "radar",
+        listOf(GuideStep.HoldStill("still", 2.0), GuideStep.RadarSweep("radar")),
+        minutes = 2,
+    )
+
+    /**
+     * Serbest keşif: oda/köşe varsayımı yok. Radar → en umut verici sınıra git → radar … Sınır kalmayınca biter.
+     * Mağara, tünel, düzensiz boşluklar için.
+     */
+    val EXPLORE = Mission(
+        "explore",
+        listOf(GuideStep.HoldStill("still", 2.0)) + (1..5).flatMap { k ->
+            listOf(GuideStep.RadarSweep("radar$k"), GuideStep.Frontier("go$k"))
+        },
+        minutes = 8,
+    )
+
+    val ALL = listOf(FIRST, EXPLORE, RADAR, ROOM, MAGNETIC, SOUND)
 
     fun byId(id: String): Mission? = ALL.firstOrNull { it.id == id }
 }
@@ -263,6 +301,11 @@ class GuideEngine(val mission: Mission, private val available: Set<Need>) {
     private var turned = 0.0
     private var nextTurnCapture = 0.0
     private var waitingExternal = false
+    private var radar: com.eirahoutmoss.nexsense.core.spatial.RadarSweep? = null
+    private var pingPending = false
+
+    /** Şu anki radar adımının durumu (radar ekranı için). */
+    val radarSweep: com.eirahoutmoss.nexsense.core.spatial.RadarSweep? get() = radar
     private val marks = ArrayList<Vec3>()
     private var stepCaptureIndex = 0
 
@@ -293,8 +336,15 @@ class GuideEngine(val mission: Mission, private val available: Set<Need>) {
             is GuideStep.Turn -> turn(step, s, caps)
             is GuideStep.Mark -> mark(step, s, caps)
             is GuideStep.PlaceFlat -> placeFlat(step, s, caps)
+            is GuideStep.RadarSweep -> radarStep(step, s, caps)
+            is GuideStep.Frontier -> frontierStep(step, s)
         }
-        if (done) advance(StepOutcome.AUTO)
+        if (done) {
+            val exhausted = step is GuideStep.Frontier && s.frontierExhausted
+            advance(StepOutcome.AUTO)
+            // Keşfedilecek sınır kalmadı: kalan radar/sınır adımları gereksiz, görev biter.
+            if (exhausted) index = mission.steps.size
+        }
         return frame(if (done) 0.0 else progress, if (done) null else hint, caps)
     }
 
@@ -329,6 +379,14 @@ class GuideEngine(val mission: Mission, private val available: Set<Need>) {
     }
 
     /** Uygulamanın yürüttüğü iş (akustik) bitti. */
+    /** Radar dilimi ölçüldü ([reading] null = ölçüm başarısız; o yön "denendi" sayılır, ışın üretilmez). */
+    fun completePing(yawDeg: Double, reading: com.eirahoutmoss.nexsense.core.spatial.RadarReading?) {
+        val sw = radar ?: return
+        if (!pingPending) return
+        pingPending = false
+        sw.add(reading ?: com.eirahoutmoss.nexsense.core.spatial.RadarReading(yawDeg, emptyList(), 0.0))
+    }
+
     fun completeExternal(success: Boolean) {
         if (current is GuideStep.PlaceFlat && waitingExternal) advance(if (success) StepOutcome.AUTO else StepOutcome.SKIPPED)
     }
@@ -505,6 +563,50 @@ class GuideEngine(val mission: Mission, private val available: Set<Need>) {
         return Eval(acc / st.holdS * 0.5, if (!flat) Hint.LAY_FLAT else Hint.MOVE_LESS, false)
     }
 
+    private fun radarStep(st: GuideStep.RadarSweep, s: GuideSignals, caps: MutableList<Capture>): Eval {
+        val sw = radar ?: com.eirahoutmoss.nexsense.core.spatial.RadarSweep(st.sectors).also { radar = it }
+        val progress = sw.measured.toDouble() / st.sectors
+        if (sw.complete) return Eval(1.0, null, true)
+        if (pingPending) return Eval(progress, Hint.WORKING, false)
+        // Konum çerçevesindeki bakış; yoksa pusula (kuzey = +y varsayımıyla).
+        val yaw = s.facing?.let { Math.toDegrees(atan2(it.y, it.x)) } ?: s.azimuthDeg?.let { 90.0 - it }
+            ?: return Eval(progress, Hint.LOST_TRACKING, false)
+        val k = sw.sectorOf(yaw)
+        if (!sw.has(k)) {
+            if (still.isSteady() == true) acc += dt else acc = 0.0
+            if (acc >= st.holdS) {
+                acc = 0.0
+                pingPending = true
+                caps += cap(CaptureKind.ACOUSTIC_PING, st, s.position, estimated = !s.tracking, yawDeg = yaw)
+                return Eval(progress, Hint.WORKING, false)
+            }
+            return Eval(progress, Hint.HOLD_STILL, false)
+        }
+        acc = 0.0
+        val turn = sw.turnToNext(yaw) ?: return Eval(1.0, null, true)
+        return Eval(progress, if (turn > 0) Hint.TURN_LEFT else Hint.TURN_RIGHT, false)
+    }
+
+    private fun frontierStep(st: GuideStep.Frontier, s: GuideSignals): Eval {
+        if (s.frontierExhausted) return Eval(1.0, null, true)
+        val p = s.position
+        if (!s.tracking || p == null) return Eval(0.0, Hint.LOST_TRACKING, false)
+        val target = s.frontier ?: return Eval(0.0, Hint.WORKING, false)
+        val to = Vec3(target.x - p.x, target.y - p.y, 0.0)
+        val dist = to.length
+        if (moveOrigin == null) { moveOrigin = p; acc = max(dist, 0.01) }
+        val progress = (1.0 - dist / acc).coerceIn(0.0, 0.99)
+        if (dist <= st.tolM) return Eval(1.0, null, true)
+        val f = s.facing?.let { flat(it) } ?: return Eval(progress, Hint.KEEP_GOING, false)
+        val ang = signedAngleDeg(f, to.normalized())
+        val hint = when {
+            ang > 35 -> Hint.TURN_LEFT
+            ang < -35 -> Hint.TURN_RIGHT
+            else -> Hint.KEEP_GOING
+        }
+        return Eval(progress, hint, false)
+    }
+
     // ---------------- yardımcılar ----------------
 
     private var prevPos: Vec3? = null
@@ -521,9 +623,9 @@ class GuideEngine(val mission: Mission, private val available: Set<Need>) {
         return speedEst
     }
 
-    private fun cap(kind: CaptureKind, step: GuideStep, p: Vec3?, estimated: Boolean): Capture {
-        captureCount++
-        return Capture(kind, step.id, stepCaptureIndex++, p, estimated)
+    private fun cap(kind: CaptureKind, step: GuideStep, p: Vec3?, estimated: Boolean, yawDeg: Double? = null): Capture {
+        if (kind != CaptureKind.ACOUSTIC_PING) captureCount++
+        return Capture(kind, step.id, stepCaptureIndex++, p, estimated, yawDeg)
     }
 
     private fun advance(outcome: StepOutcome) {
@@ -534,6 +636,7 @@ class GuideEngine(val mission: Mission, private val available: Set<Need>) {
         moveOrigin = null; moveDir = null; nextCaptureAt = 0.0
         lastYaw = null; turned = 0.0; nextTurnCapture = 0.0
         waitingExternal = false; stepCaptureIndex = 0
+        radar = null; pingPending = false
         prevPos = null; speedEst = null
     }
 

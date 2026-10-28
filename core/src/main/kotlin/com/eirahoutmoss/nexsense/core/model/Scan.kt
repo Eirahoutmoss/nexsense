@@ -14,6 +14,9 @@ enum class ScanMethod {
     /** Sabit noktadan, telefonun doğrultulduğu yönde sonar yankı mesafeleri. Deneysel. */
     @SerialName("acoustic_echo") ACOUSTIC_ECHO,
 
+    /** (şema 3) Akustik radar: olduğu yerde dönerken her yönde sonar; ışın olarak saklanır. Karanlıkta ve tozda çalışır. */
+    @SerialName("acoustic_radar") ACOUSTIC_RADAR,
+
     @SerialName("demo") DEMO,
 }
 
@@ -32,6 +35,18 @@ enum class PlaneType {
 /** Algılanan düzlem: proje koordinatında çokgen köşeleri. */
 @Serializable
 data class ScanPlane(val type: PlaneType, val polygon: List<List<Double>>, val areaM2: Double? = null)
+
+/**
+ * (şema 3) Ölçüm ışını: [o] başlangıç (telefon), [e] uç. [hit] = uçta yankı/yüzey var (dolu);
+ * false = bu uzunlukta yankı gelmedi (yalnızca yol boyunca boşluk bilgisi, zayıf). [c]: 0..1 güven.
+ */
+@Serializable
+data class ScanRay(
+    val ox: Double, val oy: Double, val oz: Double,
+    val x: Double, val y: Double, val z: Double,
+    val hit: Boolean,
+    val c: Double,
+)
 
 /** Telefonun izlediği yol. [t]: başlangıçtan beri saniye. */
 @Serializable
@@ -63,6 +78,8 @@ data class Scan(
     val points: List<ScanPoint> = emptyList(),
     val planes: List<ScanPlane> = emptyList(),
     val trajectory: List<TrackPoint> = emptyList(),
+    /** (şema 3) Akustik radar ışınları. */
+    val rays: List<ScanRay> = emptyList(),
     val alignment: ScanAlignment = ScanAlignment(),
     val notes: String = "",
 )

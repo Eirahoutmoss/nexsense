@@ -8,7 +8,7 @@ import kotlinx.serialization.json.JsonPrimitive
 
 /**
  * Şema geçişleri. Her yeni şema sürümünde buraya `n -> n+1` adımı eklenir ve
- * docs/VERI-MODELI.md güncellenir. Sürümler: 1 (ilk MVP), 2 (taramalar, analiz ayarları).
+ * docs/VERI-MODELI.md güncellenir. Sürümler: 1 (ilk MVP), 2 (taramalar, analiz ayarları), 3 (akustik radar ışınları).
  */
 object Migrations {
     fun upgrade(fromVersion: Int, root: JsonObject): JsonObject {
@@ -26,6 +26,11 @@ object Migrations {
             // yalnızca sürüm numaraları yükseltilir. Ölçüm verisi değişmez.
             val project = (r["project"] as? JsonObject)?.let { JsonObject(it + ("schemaVersion" to JsonPrimitive(2))) }
             r = JsonObject(r + ("schemaVersion" to JsonPrimitive(2)) + (if (project != null) mapOf("project" to project) else emptyMap()))
+        }
+        if (fromVersion <= 2) {
+            // 2 → 3: taramalara "rays" (varsayılan boş) eklendi; yalnızca sürüm numaraları yükseltilir.
+            val project = (r["project"] as? JsonObject)?.let { JsonObject(it + ("schemaVersion" to JsonPrimitive(3))) }
+            r = JsonObject(r + ("schemaVersion" to JsonPrimitive(3)) + (if (project != null) mapOf("project" to project) else emptyMap()))
         }
         return r
     }
