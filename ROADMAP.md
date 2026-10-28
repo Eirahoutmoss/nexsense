@@ -10,6 +10,7 @@
 | 4 — Akustik (RT60, sonar, kalibre ses basıncı, yön taraması) | ✅ 0.2.0 |
 | 5 — Mekânsal örüntü motoru | ✅ 0.2.0 |
 | 6 — Raporlama (PDF, 3B model, vaka dosyası, onaylı paylaşım) | ✅ 0.2.0 |
+| Rehberli Keşif (meraklı kullanıcı için yönlendirmeli ölçüm) | ✅ 0.3.0 |
 
 ## Faz 1 — MVP (0.1.0) ✅
 
@@ -41,6 +42,12 @@ BLE sıcaklık/nem, hava kalitesi (CO₂, VOC, PM), haricî titreşim sensörler
 ## Faz 6 — Raporlama (0.2.0) ✅
 
 PDF rapor (özet, perspektif ve katman başına plan görüntüleri, tablolar, analiz, yöntemler); PLY 3B model; vaka dosyası (ZIP: JSON, CSV, PDF, PLY, SHA-256 bütünlük listesi); açık onaylı paylaşım.
+
+## Rehberli Keşif (0.3.0) ✅
+
+Uygulama kullanıcıya eylem söyler (kaldır, indir, yürü, dön, köşeye git, masaya bırak), sensörlerle doğrular, düzeltir ve veriyi kendisi kaydeder. 4 görev, sesli yönerge, titreşim, "neden?" açıklamaları, dürüst kalite özeti. Ayrıntı: `docs/REHBER.md`.
+
+Sonra: gerçek kullanıcı denemeleriyle eşik ayarı; görevleri birbirine bağlayan "keşif yolu" (kullanıcının önceki sonuçlarına göre bir sonraki görevi önermek); 3B sahnede adım hedefini gösteren AR oku.
 
 ## Sonraki küçük işler
 
