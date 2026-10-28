@@ -44,6 +44,7 @@ import com.eirahoutmoss.nexsense.ui.components.LoadingState
 import com.eirahoutmoss.nexsense.ui.screens.AcousticScreen
 import com.eirahoutmoss.nexsense.ui.screens.AnalysisScreen
 import com.eirahoutmoss.nexsense.ui.screens.AutoScanScreen
+import com.eirahoutmoss.nexsense.ui.screens.GuidedScreen
 import com.eirahoutmoss.nexsense.ui.screens.HomeScreen
 import com.eirahoutmoss.nexsense.ui.screens.LiveScreen
 import com.eirahoutmoss.nexsense.ui.screens.MeasurementsScreen
@@ -63,6 +64,7 @@ enum class Tab(val label: Int, val icon: ImageVector) {
 enum class Overlay(val title: Int) {
     SETTINGS(R.string.settings_title),
     AUTO_SCAN(R.string.auto_title),
+    GUIDED(R.string.guide_title),
     ACOUSTIC(R.string.acoustic_title),
     ANALYSIS(R.string.analysis_title),
 }
@@ -150,6 +152,7 @@ fun NexSenseRoot(c: AppContainer) {
             overlay == Overlay.SETTINGS -> SettingsScreen(c, m)
             !loaded -> LoadingState(m)
             overlay == Overlay.AUTO_SCAN -> AutoScanScreen(c, bundle, m, onDone = back)
+            overlay == Overlay.GUIDED -> GuidedScreen(c, bundle, m, onDone = back)
             overlay == Overlay.ACOUSTIC -> AcousticScreen(c, bundle, m, onDone = back)
             overlay == Overlay.ANALYSIS -> AnalysisScreen(c, bundle, m, onDone = { overlay = null })
             else -> when (tab) {

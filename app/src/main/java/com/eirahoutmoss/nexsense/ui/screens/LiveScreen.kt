@@ -160,6 +160,17 @@ fun LiveScreen(c: AppContainer, bundle: ProjectBundle?, modifier: Modifier, onGo
                 }
             }
             item {
+                // Rehberli keşif: meraklı kullanıcı için adım adım yönlendirme.
+                androidx.compose.material3.Button(
+                    onClick = { onOverlay(Overlay.GUIDED) }, enabled = bundle != null,
+                    modifier = Modifier.fillMaxWidth().height(64.dp).padding(bottom = 8.dp),
+                ) {
+                    Icon(Icons.Outlined.Explore, null); Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text(stringResource(R.string.live_guided), style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.live_guided_sub), style = MaterialTheme.typography.labelSmall)
+                    }
+                }
                 // Otomatik ölçüm: koordinat yazmadan, yürüyerek. Akustik: telefon sabit noktada.
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     androidx.compose.material3.Button(

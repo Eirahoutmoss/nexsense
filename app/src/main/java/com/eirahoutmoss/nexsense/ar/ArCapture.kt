@@ -99,6 +99,10 @@ class ArCapture(
 
     @Volatile private var lastWorld: FloatArray? = null
 
+    /** Telefonun yatay bakış yönü, proje çerçevesinde (birim vektör). İzleme yoksa null. */
+    @Volatile var lastFacing: Vec3? = null
+        private set
+
     /** AR dünya noktasını proje çerçevesine çevirir (orijin belirlendikten sonra). */
     private fun toProject(x: Float, y: Float, z: Float): Vec3? {
         val o = origin ?: return null
@@ -151,6 +155,7 @@ class ArCapture(
         val camera = frame.camera
         val now = frame.timestamp
         if (camera.trackingState != TrackingState.TRACKING) {
+            lastFacing = null
             status(
                 when (camera.trackingFailureReason) {
                     TrackingFailureReason.INSUFFICIENT_LIGHT -> ArStatus.TOO_DARK
@@ -177,6 +182,12 @@ class ArCapture(
             yaw0Deg = Math.toDegrees(atan2(-f.x, f.y))
         }
         lastWorld = floatArrayOf(pose.tx(), pose.ty(), pose.tz())
+        run {
+            val z = pose.zAxis
+            val f = FrameMath.arToScan(-z[0].toDouble(), -z[1].toDouble(), -z[2].toDouble())
+            val h = FrameMath.rotateZ(FrameMath.rotateZ(Vec3(f.x, f.y, 0.0), -yaw0Deg), alignment.yawDeg)
+            lastFacing = if (h.length > 1e-3) h.normalized() else null
+        }
         val pProj = toProject(pose.tx(), pose.ty(), pose.tz())!!
         val tS = (now - t0Ns) / 1e9
         if (capturing) synchronized(lock) { track.offer(tS, pProj) }
