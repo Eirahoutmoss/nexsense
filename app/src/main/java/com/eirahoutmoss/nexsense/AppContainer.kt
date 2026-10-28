@@ -26,5 +26,6 @@ class AppContainer(context: Context) {
     val actions: ProjectActions by lazy { ProjectActions(appContext, repository, settings) }
     val sensorHub: SensorHub by lazy { SensorHub(appContext) }
     val micMeter: MicMeter by lazy { MicMeter(appContext) }
+    val listenStore: com.eirahoutmoss.nexsense.data.ListenStore by lazy { com.eirahoutmoss.nexsense.data.ListenStore(appContext) }
     val updateManager: UpdateManager by lazy { UpdateManager(appContext) }
 }

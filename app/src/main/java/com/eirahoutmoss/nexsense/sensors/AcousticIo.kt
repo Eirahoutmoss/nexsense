@@ -117,6 +117,63 @@ class AcousticIo(private val context: Context) {
         }
     }
 
+    /**
+     * Sürekli dinleme: iptal edilene kadar [blockN] örneklik blokları [onBlock]'a verir.
+     * Bloklar yalnızca bellekte işlenir; ses saklanmaz.
+     */
+    @SuppressLint("MissingPermission")
+    suspend fun stream(fs: Int, blockN: Int = 1600, onBlock: (FloatArray) -> Unit) = withContext(Dispatchers.IO) {
+        if (!hasPermission()) throw AcousticException(5)
+        val rec = openRecord(fs)
+        try {
+            rec.startRecording()
+            read(rec, fs / 5) // açılış geçişi
+            val buf = ShortArray(blockN)
+            while (true) {
+                coroutineContext.ensureActive()
+                val got = rec.read(buf, 0, blockN)
+                if (got < 0) throw AcousticException(4)
+                if (got > 0) onBlock(FloatArray(got) { buf[it] / 32768f })
+            }
+        } catch (e: SecurityException) {
+            throw AcousticException(5)
+        } catch (e: IllegalStateException) {
+            throw AcousticException(4)
+        } finally {
+            runCatching { rec.stop() }
+            rec.release()
+        }
+    }
+
+    /** Yalnızca çalma (tatbikat sinyali). Çalma bitince döner. */
+    suspend fun play(signal: FloatArray, fs: Int) = withContext(Dispatchers.IO) {
+        val pcm = ShortArray(signal.size) { (signal[it].coerceIn(-1f, 1f) * Short.MAX_VALUE).toInt().toShort() }
+        val track = try {
+            AudioTrack.Builder()
+                .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+                .setAudioFormat(AudioFormat.Builder().setSampleRate(fs).setEncoding(AudioFormat.ENCODING_PCM_16BIT).setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build())
+                .setTransferMode(AudioTrack.MODE_STATIC)
+                .setBufferSizeInBytes(pcm.size * 2)
+                .build()
+        } catch (e: Exception) {
+            throw AcousticException(3)
+        }
+        try {
+            if (track.write(pcm, 0, pcm.size) != pcm.size) throw AcousticException(3)
+            track.play()
+            val ms = pcm.size * 1000L / fs
+            var waited = 0L
+            while (waited < ms + 200) {
+                coroutineContext.ensureActive()
+                kotlinx.coroutines.delay(50)
+                waited += 50
+            }
+        } finally {
+            runCatching { track.stop() }
+            track.release()
+        }
+    }
+
     @SuppressLint("MissingPermission")
     private fun openRecord(fs: Int): AudioRecord {
         val minBuf = AudioRecord.getMinBufferSize(fs, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
