@@ -2,6 +2,8 @@
 
 Nex uygulama ailesinin mekânsal sensör uygulaması (Android). Telefonun yerleşik sensörlerinden ölçüm toplar, ölçümleri zaman ve **kullanıcının kendi referans noktasına göre** konumla ilişkilendirir ve sonuçları katmanlı, etkileşimli bir 3B sahnede gösterir.
 
+**0.3.0'da yeni — Rehberli Keşif:** meraklı kullanıcı için. Uygulama tek tek ne yapacağını söyler ("telefonu diz hizasına indir", "2 m ileri yürü", "yavaşça dön", "masaya bırak"), sensörlerle hareketi denetler, gerekirse düzeltir ("biraz daha yukarı", "yavaşla") ve veriyi doğru anda kendisi kaydeder. Sesli yönerge, titreşim, "neden?" açıklamaları, atlanabilir adımlar ve dürüst kalite özeti var. Tasarım notları: [`docs/REHBER.md`](docs/REHBER.md).
+
 **0.2.0'da yeni:** koordinat yazmadan **otomatik ölçüm** (başlat ve yürü: ARCore ile konum izleme, nokta bulutu, duvar/zemin düzlemleri; ARCore yoksa adım sayımı), **sabit nokta akustiği** (yankı süresi RT60, sonar mesafe, kalibre ses basıncı, akustik yön taraması), **analiz** (eşik, anomali, ilişki, zaman çizgisi, IDW tahmini) ve **raporlama** (PDF, 3B model PLY, vaka dosyası, onaylı paylaşım). Haricî sensörler (Faz 3) bilerek bekletiliyor.
 
 > **Temel ilke:** Gerçek ölçüm, algoritmik tahmin ve bilinmeyen alanlar görsel olarak ayrıdır. Ölçülmeyen yer ölçülmüş gibi gösterilmez; desteklenmeyen sensör "Bu cihazda desteklenmiyor" der; demo verisi her yerde **DEMO VERİSİ** etiketiyle görünür.
@@ -16,6 +18,7 @@ Nex uygulama ailesinin mekânsal sensör uygulaması (Android). Telefonun yerle�
 | Ekran | İçerik |
 |---|---|
 | **Ana Sayfa** | Projeler (oluştur, aç, yeniden adlandır, sil), ölçüme başla, demo projesi |
+| **Rehberli keşif** | Görevler: İlk keşif, Oda haritası, Duvar manyetik izi, Oda sesi (1–3 dk). Tek yönerge + büyük ok + ilerleme; sesli yönerge; doğrulanınca otomatik kayıt; sensör yoksa elle onay ("tahmini" işaretli); sonunda otomatik/onaylı/atlanan adımlar ve kalite |
 | **Otomatik ölçüm** | Başlat → yürü. ARCore modu: telefonun konumu cm düzeyinde izlenir; her 0,25–2 m'de ölçüm noktası (konum + o anki sensör değerleri + yönelim) kendiliğinden kaydedilir; nokta bulutu (özellik noktaları + destekleyen cihazda derinlik), yatay/düşey düzlemler, yürüme yolu. Başlangıç = referans noktası ya da var olan bir nokta. ARCore yoksa adım modu (kaba, "tahmini konum") |
 | **Sabit nokta: akustik** | Telefon sabit bir yerde: oda yankı süresi (oktav bantları, kalite, oda modları), yankı mesafesi (sonar, 3 yankıya kadar), ses düzeyi / yaklaşık dB SPL / baskın frekans, akustik yön taraması (yüzeylere doğrultarak 3B noktalar, deneysel). Sonuçlar seçilen noktaya kaydedilir |
 | **Analiz** | Ölçüm yeterliliği, eşik uyarıları, anomali adayları (sağlam z), katman ilişkileri (Pearson), zaman çizgisi ve aynı yerde oturumlar arası değişim, yönden bağımsız manyetik bileşenler, IDW tahmin ayarları, yaklaşık oda boyutu |
@@ -116,6 +119,7 @@ keyPassword=...
 | Akustik | RT60 (yapay odalarla, NexTools testleri), çoklu yankı sırası, bilinmeyen hoparlör gecikmesinde darbe hizalama, dBFS/ofset/baskın frekans |
 | Analiz | IDW (ölçüm noktasında doğru, uzakta boş, az noktada yok), anomali, eşik, yeterlilik, ilişki, zaman çizgisi, manyetik dünya bileşenleri, oda boyutu |
 | Rapor | PLY başlık/gövde tutarlılığı, vaka dosyası SHA-256 listesi |
+| Rehberli keşif | her adım türü yapay sensör akışıyla: durgunluk, 8 kalibrasyonu, yükseklik ipuçları, ileri/yana yürüme ve sapma düzeltmesi, dönüş ve hız uyarısı, başlangıca dönüş, köşe işaretleme, masaya bırakınca akustik, sensör yoksa dürüst elle onay, kalite ve konum kaybı sayımı |
 
 **Gerçek cihazda denenmedi (0.1.0 ve 0.2.0).** Compose arayüz testleri ve cihaz üstü testler bu sürümde yok; emülatörde de çalıştırılmadı (CI'da emülatör yok). Sensör okuma, izin akışı, 3B sahne hareketleri ve dosya kaydetme diyalogları gerçek telefonda elle denenmelidir:
 
@@ -125,10 +129,11 @@ keyPassword=...
 4. Uygulamayı tamamen kapatıp aç → noktalar duruyor olmalı.
 5. Katmanları aç/kapat; döndür, yakınlaştır, kaydır, noktaya dokun.
 6. Rapor → CSV ve JSON kaydet → JSON'u içe al → kopya proje oluşmalı.
-7. Canlı → **Otomatik ölçüm** → ARCore → kamera izni → başlat, odada yavaşça bir tur at → noktalar kendiliğinden eklenmeli; Bitir → Mekân'da nokta bulutu, düzlemler, yol ve renkli noktalar.
-8. ARCore'u kapatıp (ya da desteklemeyen telefonda) **Adım sayımı** ile aynı turu at → kesikli halkalı noktalar.
-9. **Sabit nokta: akustik** → telefonu masaya koy → Oda akustiği, Yankı mesafesi, Ses düzeyi → "Noktaya kaydet"; Yön taraması ile birkaç yüzey ölç → Taramayı kaydet.
-10. Rapor → PDF, PLY, vaka dosyası kaydet; Paylaş → onay ekranı çıkmalı. PLY'yi MeshLab/CloudCompare'de aç.
+7. Canlı → **Rehberli keşif** → İlk keşif: sesli yönergelerle adımları yap; "biraz daha yukarı/aşağı", "yavaşla" uyarılarının doğru çıktığını ve sonunda özetin geldiğini gör. Oda sesi görevinde telefonu masaya bırakınca ölçüm kendiliğinden başlamalı.
+8. Canlı → **Otomatik ölçüm** → ARCore → kamera izni → başlat, odada yavaşça bir tur at → noktalar kendiliğinden eklenmeli; Bitir → Mekân'da nokta bulutu, düzlemler, yol ve renkli noktalar.
+9. ARCore'u kapatıp (ya da desteklemeyen telefonda) **Adım sayımı** ile aynı turu at → kesikli halkalı noktalar.
+10. **Sabit nokta: akustik** → telefonu masaya koy → Oda akustiği, Yankı mesafesi, Ses düzeyi → "Noktaya kaydet"; Yön taraması ile birkaç yüzey ölç → Taramayı kaydet.
+11. Rapor → PDF, PLY, vaka dosyası kaydet; Paylaş → onay ekranı çıkmalı. PLY'yi MeshLab/CloudCompare'de aç.
 
 ## Sınırlamalar
 
